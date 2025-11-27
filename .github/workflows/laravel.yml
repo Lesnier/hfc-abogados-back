@@ -1,14 +1,15 @@
-name: Deploy Laravel to Production (Fast - No Composer Upload)
+name: Deploy Laravel to Production (SFTP - Stable)
 
 on:
   push:
-    branches: [ master ]
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: production
+    timeout-minutes: 30  # Timeout del job completo
 
     steps:
       - name: Checkout code
@@ -16,7 +17,6 @@ jobs:
 
       # ============================================
       # NO instalar composer localmente
-      # Solo validar composer.json
       # ============================================
       - name: Setup PHP (for validation only)
         uses: shivammathur/setup-php@v2
@@ -57,7 +57,6 @@ jobs:
           SESSION_DRIVER=file
           SESSION_LIFETIME=120
 
-          # Token para ejecutar comandos de deploy
           DEPLOY_TOKEN=${{ secrets.DEPLOY_TOKEN }}
 
           MAIL_MAILER=${{ secrets.MAIL_MAILER }}
@@ -103,25 +102,21 @@ jobs:
           rm -f vite.config.js
 
       # ============================================
-      # Deploy vía FTP (SIN vendor/)
+      # Deploy vía SFTP (MÁS ESTABLE QUE FTP)
       # ============================================
-      - name: Deploy to FTP
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.0
+      - name: Deploy via SFTP
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.4
         with:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
-          local-dir: ./
-          server-dir: ${{ secrets.FTP_SERVER_DIR }}
-          exclude: |
-            **/.git*
-            **/.git*/**
-            **/node_modules/**
-            **/tests/**
-            **/vendor/**
-            **/.env.example
-          timeout: 300000
-          log-level: verbose
+          port: 22  # Puerto SFTP (normalmente 22)
+          local_path: './*'
+          remote_path: ${{ secrets.FTP_SERVER_DIR }}
+          sftp_only: true
+          args: '-o ConnectTimeout=10'
+          # Excluir archivos innecesarios
+          exclude: '.git,.github,tests,node_modules,vendor'
 
       # ============================================
       # Post-deploy: Ejecutar composer install en servidor
@@ -129,19 +124,31 @@ jobs:
       - name: Execute composer install on server
         run: |
           echo "🔧 Executing composer install on server..."
-          RESPONSE=$(curl -s -w "\n%{http_code}" "${{ secrets.APP_URL }}/deploy/composer-install?token=${{ secrets.DEPLOY_TOKEN }}")
-          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
-          BODY=$(echo "$RESPONSE" | sed '$d')
 
-          echo "HTTP Status: $HTTP_CODE"
-          echo "Response: $BODY"
+          # Reintentar hasta 3 veces si falla
+          for i in {1..3}; do
+            RESPONSE=$(curl -s -w "\n%{http_code}" --max-time 300 "${{ secrets.APP_URL }}/deploy/composer-install?token=${{ secrets.DEPLOY_TOKEN }}")
+            HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+            BODY=$(echo "$RESPONSE" | sed '$d')
 
-          if [ "$HTTP_CODE" != "200" ]; then
-            echo "❌ Composer install failed with status $HTTP_CODE"
-            exit 1
-          fi
+            echo "Intento $i - HTTP Status: $HTTP_CODE"
 
-          echo "✅ Composer install completed successfully"
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "✅ Composer install completed successfully"
+              echo "$BODY" | jq '.' || echo "$BODY"
+              break
+            else
+              echo "⚠️  Intento $i falló con status $HTTP_CODE"
+              echo "$BODY"
+              if [ $i -lt 3 ]; then
+                echo "Esperando 10 segundos antes de reintentar..."
+                sleep 10
+              else
+                echo "❌ Composer install failed after 3 attempts"
+                exit 1
+              fi
+            fi
+          done
 
       # ============================================
       # Post-deploy: Optimizar Laravel
@@ -149,17 +156,18 @@ jobs:
       - name: Optimize Laravel on server
         run: |
           echo "🚀 Optimizing Laravel..."
-          RESPONSE=$(curl -s -w "\n%{http_code}" "${{ secrets.APP_URL }}/deploy/optimize?token=${{ secrets.DEPLOY_TOKEN }}")
+          RESPONSE=$(curl -s -w "\n%{http_code}" --max-time 60 "${{ secrets.APP_URL }}/deploy/optimize?token=${{ secrets.DEPLOY_TOKEN }}")
           HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
           BODY=$(echo "$RESPONSE" | sed '$d')
 
           echo "HTTP Status: $HTTP_CODE"
-          echo "Response: $BODY"
 
-          if [ "$HTTP_CODE" != "200" ]; then
-            echo "⚠️  Optimization failed with status $HTTP_CODE (continuing anyway)"
-          else
+          if [ "$HTTP_CODE" = "200" ]; then
             echo "✅ Laravel optimized successfully"
+            echo "$BODY" | jq '.' || echo "$BODY"
+          else
+            echo "⚠️  Optimization failed with status $HTTP_CODE (continuing anyway)"
+            echo "$BODY"
           fi
         continue-on-error: true
 
@@ -169,7 +177,7 @@ jobs:
       - name: Check server status
         run: |
           echo "📊 Checking server status..."
-          curl -s "${{ secrets.APP_URL }}/deploy/status?token=${{ secrets.DEPLOY_TOKEN }}" | jq '.'
+          curl -s --max-time 30 "${{ secrets.APP_URL }}/deploy/status?token=${{ secrets.DEPLOY_TOKEN }}" | jq '.' || echo "Status check failed"
         continue-on-error: true
 
       # ============================================
@@ -180,7 +188,7 @@ jobs:
           echo "================================"
           echo "🎉 Deploy Completed Successfully!"
           echo "================================"
-          echo "📦 Files uploaded via FTP"
+          echo "📦 Files uploaded via SFTP"
           echo "🔧 Composer install executed on server"
           echo "🚀 Laravel optimized"
           echo "🌐 Site: ${{ secrets.APP_URL }}"
