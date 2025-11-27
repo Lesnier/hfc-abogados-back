@@ -19,3 +19,54 @@
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^ index.php [L]
 </IfModule>
+
+# Seguridad adicional
+<IfModule mod_headers.c>
+    # Prevenir clickjacking
+    Header always set X-Frame-Options "SAMEORIGIN"
+
+    # Prevenir XSS
+    Header always set X-XSS-Protection "1; mode=block"
+
+    # Prevenir MIME sniffing
+    Header always set X-Content-Type-Options "nosniff"
+
+    # Referrer Policy
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# Deshabilitar listado de directorios
+Options -Indexes
+
+# Proteger archivos sensibles
+<FilesMatch "^\.">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Proteger .env
+<Files .env>
+    Order allow,deny
+    Deny from all
+</Files>
+
+# Proteger composer
+<FilesMatch "composer\.(json|lock)">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Proteger package.json
+<FilesMatch "package(-lock)?\.json">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Configuración de PHP (si es permitido)
+<IfModule mod_php.c>
+    php_value upload_max_filesize 50M
+    php_value post_max_size 50M
+    php_value max_execution_time 300
+    php_value max_input_time 300
+    php_value memory_limit 256M
+</IfModule>
