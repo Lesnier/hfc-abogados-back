@@ -2,7 +2,7 @@ name: Deploy Laravel to Production (SFTP - Stable)
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
   workflow_dispatch:
 
 jobs:
