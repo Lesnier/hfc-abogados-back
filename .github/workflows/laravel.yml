@@ -1,150 +1,187 @@
-name: Deploy Laravel to Production
+name: Deploy Laravel to Production (Fast - No Composer Upload)
 
 on:
   push:
-    branches: [ master ]  # O master, según tu rama principal
-  workflow_dispatch:  # Permite ejecutar manualmente
+    branches: [ master ]
+  workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: production  # Usa el environment "production" con tus secrets
-    
+    environment: production
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
-    
-    # ============================================
-    # Setup PHP y Composer
-    # ============================================
-    - name: Setup PHP
-      uses: shivammathur/setup-php@v2
-      with:
-        php-version: '8.2'  # Ajusta según tu versión de PHP
-        extensions: mbstring, xml, ctype, json, bcmath, pdo, mysql
-        coverage: none
-    
-    - name: Validate composer.json
-      run: composer validate --strict
-    
-    - name: Get composer cache directory
-      id: composer-cache
-      run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
-    
-    - name: Cache composer dependencies
-      uses: actions/cache@v3
-      with:
-        path: ${{ steps.composer-cache.outputs.dir }}
-        key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
-        restore-keys: ${{ runner.os }}-composer-
-    
-    - name: Install Composer dependencies
-      run: composer install --prefer-dist --no-interaction --no-dev --optimize-autoloader
-    
-    # ============================================
-    # Crear archivo .env con secrets
-    # ============================================
-    - name: Create .env file
-      run: |
-        cat > .env << 'EOF'
-        APP_NAME="${{ secrets.APP_NAME }}"
-        APP_ENV=production
-        APP_KEY=${{ secrets.APP_KEY }}
-        APP_DEBUG=false
-        APP_URL=${{ secrets.APP_URL }}
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-        LOG_CHANNEL=stack
-        LOG_DEPRECATIONS_CHANNEL=null
-        LOG_LEVEL=error
+      # ============================================
+      # NO instalar composer localmente
+      # Solo validar composer.json
+      # ============================================
+      - name: Setup PHP (for validation only)
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: composer:v2
 
-        DB_CONNECTION=mysql
-        DB_HOST=${{ secrets.DB_HOST }}
-        DB_PORT=${{ secrets.DB_PORT }}
-        DB_DATABASE=${{ secrets.DB_DATABASE }}
-        DB_USERNAME=${{ secrets.DB_USERNAME }}
-        DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+      - name: Validate composer.json
+        run: composer validate --strict
 
-        BROADCAST_DRIVER=log
-        CACHE_DRIVER=file
-        FILESYSTEM_DISK=local
-        QUEUE_CONNECTION=sync
-        SESSION_DRIVER=file
-        SESSION_LIFETIME=120
+      # ============================================
+      # Crear archivo .env con secrets
+      # ============================================
+      - name: Create .env file
+        run: |
+          cat > .env << 'EOF'
+          APP_NAME="${{ secrets.APP_NAME }}"
+          APP_ENV=production
+          APP_KEY=${{ secrets.APP_KEY }}
+          APP_DEBUG=false
+          APP_URL=${{ secrets.APP_URL }}
 
-        MEMCACHED_HOST=127.0.0.1
+          LOG_CHANNEL=stack
+          LOG_DEPRECATIONS_CHANNEL=null
+          LOG_LEVEL=error
 
-        REDIS_HOST=127.0.0.1
-        REDIS_PASSWORD=null
-        REDIS_PORT=6379
+          DB_CONNECTION=mysql
+          DB_HOST=${{ secrets.DB_HOST }}
+          DB_PORT=${{ secrets.DB_PORT }}
+          DB_DATABASE=${{ secrets.DB_DATABASE }}
+          DB_USERNAME=${{ secrets.DB_USERNAME }}
+          DB_PASSWORD=${{ secrets.DB_PASSWORD }}
 
-        MAIL_MAILER=${{ secrets.MAIL_MAILER }}
-        MAIL_HOST=${{ secrets.MAIL_HOST }}
-        MAIL_PORT=${{ secrets.MAIL_PORT }}
-        MAIL_USERNAME=${{ secrets.MAIL_USERNAME }}
-        MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}
-        MAIL_ENCRYPTION=${{ secrets.MAIL_ENCRYPTION }}
-        MAIL_FROM_ADDRESS=${{ secrets.MAIL_FROM_ADDRESS }}
-        MAIL_FROM_NAME="${{ secrets.APP_NAME }}"
+          BROADCAST_DRIVER=log
+          CACHE_DRIVER=file
+          FILESYSTEM_DISK=local
+          QUEUE_CONNECTION=sync
+          SESSION_DRIVER=file
+          SESSION_LIFETIME=120
 
-        DEPLOY_TOKEN=${{ secrets.DEPLOY_TOKEN }}
-        EOF
-    
-    # ============================================
-    # Optimizar Laravel para producción
-    # ============================================
-    - name: Create necessary directories
-      run: |
-        mkdir -p storage/framework/{sessions,views,cache}
-        mkdir -p storage/logs
-        mkdir -p bootstrap/cache
-    
-    - name: Set permissions
-      run: |
-        chmod -R 775 storage bootstrap/cache
-    
-    # ============================================
-    # Limpiar archivos innecesarios
-    # ============================================
-    - name: Clean up unnecessary files
-      run: |
-        rm -rf .git
-        rm -rf .github
-        rm -rf tests
-        rm -rf node_modules
-        rm -f .gitignore
-        rm -f .gitattributes
-        rm -f .editorconfig
-        rm -f phpunit.xml
-        rm -f README.md
-        rm -f package.json
-        rm -f package-lock.json
-        rm -f webpack.mix.js
-        rm -f vite.config.js
-    
-    # ============================================
-    # Deploy vía FTP
-    # ============================================
-    - name: Deploy to FTP
-      uses: SamKirkland/FTP-Deploy-Action@v4.3.0
-      with:
-        server: ${{ secrets.FTP_SERVER }}
-        username: ${{ secrets.FTP_USERNAME }}
-        password: ${{ secrets.FTP_PASSWORD }}
-        local-dir: ./
-        server-dir: ${{ secrets.FTP_SERVER_DIR }}  # Ej: /public_html/ o /public_html/api/
-        exclude: |
-          **/.git*
-          **/.git*/**
-          **/node_modules/**
-          **/tests/**
-          **/.env.example
-        timeout: 1100000
-        log-level: verbose
-    
-    # ============================================
-    # Post-deploy: Limpiar caché en servidor
-    # ============================================
-    - name: Clear application cache via HTTP
-      run: |
-        curl -f "${{ secrets.APP_URL }}/artisan-cache-clear?token=${{ secrets.DEPLOY_TOKEN }}"
-      continue-on-error: true
+          # Token para ejecutar comandos de deploy
+          DEPLOY_TOKEN=${{ secrets.DEPLOY_TOKEN }}
+
+          MAIL_MAILER=${{ secrets.MAIL_MAILER }}
+          MAIL_HOST=${{ secrets.MAIL_HOST }}
+          MAIL_PORT=${{ secrets.MAIL_PORT }}
+          MAIL_USERNAME=${{ secrets.MAIL_USERNAME }}
+          MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}
+          MAIL_ENCRYPTION=${{ secrets.MAIL_ENCRYPTION }}
+          MAIL_FROM_ADDRESS=${{ secrets.MAIL_FROM_ADDRESS }}
+          MAIL_FROM_NAME="${{ secrets.APP_NAME }}"
+          EOF
+
+      # ============================================
+      # Crear directorios necesarios
+      # ============================================
+      - name: Create necessary directories
+        run: |
+          mkdir -p storage/framework/{sessions,views,cache}
+          mkdir -p storage/logs
+          mkdir -p bootstrap/cache
+
+      - name: Set permissions
+        run: |
+          chmod -R 775 storage bootstrap/cache
+
+      # ============================================
+      # Limpiar archivos innecesarios
+      # ============================================
+      - name: Clean up unnecessary files
+        run: |
+          rm -rf .git
+          rm -rf .github
+          rm -rf tests
+          rm -rf node_modules
+          rm -f .gitignore
+          rm -f .gitattributes
+          rm -f .editorconfig
+          rm -f phpunit.xml
+          rm -f README.md
+          rm -f package.json
+          rm -f package-lock.json
+          rm -f webpack.mix.js
+          rm -f vite.config.js
+
+      # ============================================
+      # Deploy vía FTP (SIN vendor/)
+      # ============================================
+      - name: Deploy to FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.0
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./
+          server-dir: ${{ secrets.FTP_SERVER_DIR }}
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            **/tests/**
+            **/vendor/**
+            **/.env.example
+          timeout: 300000
+          log-level: verbose
+
+      # ============================================
+      # Post-deploy: Ejecutar composer install en servidor
+      # ============================================
+      - name: Execute composer install on server
+        run: |
+          echo "🔧 Executing composer install on server..."
+          RESPONSE=$(curl -s -w "\n%{http_code}" "${{ secrets.APP_URL }}/deploy/composer-install?token=${{ secrets.DEPLOY_TOKEN }}")
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+
+          echo "HTTP Status: $HTTP_CODE"
+          echo "Response: $BODY"
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "❌ Composer install failed with status $HTTP_CODE"
+            exit 1
+          fi
+
+          echo "✅ Composer install completed successfully"
+
+      # ============================================
+      # Post-deploy: Optimizar Laravel
+      # ============================================
+      - name: Optimize Laravel on server
+        run: |
+          echo "🚀 Optimizing Laravel..."
+          RESPONSE=$(curl -s -w "\n%{http_code}" "${{ secrets.APP_URL }}/deploy/optimize?token=${{ secrets.DEPLOY_TOKEN }}")
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+
+          echo "HTTP Status: $HTTP_CODE"
+          echo "Response: $BODY"
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "⚠️  Optimization failed with status $HTTP_CODE (continuing anyway)"
+          else
+            echo "✅ Laravel optimized successfully"
+          fi
+        continue-on-error: true
+
+      # ============================================
+      # Verificar estado del servidor
+      # ============================================
+      - name: Check server status
+        run: |
+          echo "📊 Checking server status..."
+          curl -s "${{ secrets.APP_URL }}/deploy/status?token=${{ secrets.DEPLOY_TOKEN }}" | jq '.'
+        continue-on-error: true
+
+      # ============================================
+      # Resumen del deploy
+      # ============================================
+      - name: Deploy Summary
+        run: |
+          echo "================================"
+          echo "🎉 Deploy Completed Successfully!"
+          echo "================================"
+          echo "📦 Files uploaded via FTP"
+          echo "🔧 Composer install executed on server"
+          echo "🚀 Laravel optimized"
+          echo "🌐 Site: ${{ secrets.APP_URL }}"
+          echo "================================"
