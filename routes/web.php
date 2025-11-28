@@ -18,7 +18,7 @@ use TCG\Voyager\Facades\Voyager;
 */
 
 Route::get('/', function () {
-    redirect('/admin') ;
+    return redirect('/admin') ;
 });
 
 
