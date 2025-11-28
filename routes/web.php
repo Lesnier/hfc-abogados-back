@@ -71,7 +71,7 @@ Route::get('/deploy-test', function () {
 // Ruta con token
 Route::get('/deploy/status', function () {
     $token = request()->query('token');
-    $correctToken = env('DEPLOY_TOKEN', 'change-me');
+    $correctToken = env('DEPLOY_TOKEN', 'd8UUbndtLqnwFDkcYdpYWJR7hXBtLVwC');
 
     if ($token !== $correctToken) {
         return response()->json(['error' => 'Invalid token'], 403);
@@ -88,7 +88,7 @@ Route::get('/deploy/status', function () {
 // Storage link
 Route::get('/deploy/storage-link', function () {
     $token = request()->query('token');
-    if ($token !== env('DEPLOY_TOKEN', 'change-me')) {
+    if ($token !== env('DEPLOY_TOKEN', 'd8UUbndtLqnwFDkcYdpYWJR7hXBtLVwC')) {
         return response()->json(['error' => 'Invalid token'], 403);
     }
 
@@ -110,7 +110,7 @@ Route::get('/deploy/storage-link', function () {
 // Composer install
 Route::get('/deploy/composer-install', function () {
     $token = request()->query('token');
-    if ($token !== env('DEPLOY_TOKEN', 'change-me')) {
+    if ($token !== env('DEPLOY_TOKEN', 'd8UUbndtLqnwFDkcYdpYWJR7hXBtLVwC')) {
         return response()->json(['error' => 'Invalid token'], 403);
     }
 
@@ -144,7 +144,8 @@ Route::get('/deploy/composer-install', function () {
 // Optimize
 Route::get('/deploy/optimize', function () {
     $token = request()->query('token');
-    if ($token !== env('DEPLOY_TOKEN', 'change-me')) {
+    return response()->json(['DEPLOY_TOKEN' => env('DEPLOY_TOKEN', 'd8UUbndtLqnwFDkcYdpYWJR7hXBtLVwC'), 'token' => $token]);
+    if ($token !== env('DEPLOY_TOKEN', 'd8UUbndtLqnwFDkcYdpYWJR7hXBtLVwC')) {
         return response()->json(['error' => 'Invalid token'], 403);
     }
 
