@@ -144,7 +144,7 @@ Route::get('/deploy/composer-install', function () {
 // Optimize
 Route::get('/deploy/optimize', function () {
     $token = request()->query('token');
-    return response()->json(['DEPLOY_TOKEN' => env('DEPLOY_TOKEN', 'd8UUbndtLqnwFDkcYdpYWJR7hXBtLVwC'), 'token' => $token]);
+
     if ($token !== env('DEPLOY_TOKEN', 'd8UUbndtLqnwFDkcYdpYWJR7hXBtLVwC')) {
         return response()->json(['error' => 'Invalid token'], 403);
     }
