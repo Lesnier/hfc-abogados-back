@@ -7,7 +7,10 @@ use Illuminate\Database\Eloquent\Model;
 
 class Company extends Model
 {
-
+    public function suppliers()
+    {
+        return $this->hasMany(Supplier::class);
+    }
     public function scopeBrowserList($query)
     {
         $user = auth()->user();

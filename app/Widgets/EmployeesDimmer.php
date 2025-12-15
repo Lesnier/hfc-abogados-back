@@ -2,13 +2,13 @@
 
 namespace App\Widgets;
 
-use App\Models\Company;
+use App\Models\Employee;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use TCG\Voyager\Facades\Voyager;
 use TCG\Voyager\Widgets\BaseDimmer;
 
-class CompanyDimmer extends BaseDimmer
+class EmployeesDimmer extends BaseDimmer
 {
     /**
      * The configuration array.
@@ -23,17 +23,17 @@ class CompanyDimmer extends BaseDimmer
      */
     public function run()
     {
-        $count = Company::all()->count();
+        $count = Employee::all()->count();
 
         return view('vendor.voyager.widgets.metric', array_merge($this->config, [
-            'icon'   => 'voyager-company',
-            'title'  => "{$count} Empresas",
-            'text'   => 'Ve a Empresas para verlas todas.',
+            'icon'   => 'voyager-group',
+            'title'  => "{$count} Empleados",
+            'text'   => 'Ve a Empleados para verlas todas.',
             'button' => [
-                'text' => 'Ver Empresas',
-                'link' => route('voyager.companies.index'),
+                'text' => 'Ver Empleados',
+                'link' => route('voyager.employees.index'),
             ],
-            'image' => '/fondo_widgets.jpg',
+            'image' => '/fondo_widgets2.jpg',
         ]));
     }
 //    public function shouldBeDisplayed()

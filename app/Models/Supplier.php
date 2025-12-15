@@ -9,7 +9,10 @@ class Supplier extends Model
 {
     protected $table = 'suppliers';
     protected $fillable = ["identification", "name", "cuil", "condition", "suitable_income", "supplier_id"];
-
+    public function employees()
+    {
+        return $this->hasMany(Employee::class);
+    }
     public function scopeAccess($query)
     {
         $user = auth()->user();
