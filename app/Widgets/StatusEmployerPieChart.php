@@ -53,4 +53,10 @@ $statusEmployee = Employee::select('approval_status', DB::raw('COUNT(*) as count
         ]);
     }
 
+     public function shouldBeDisplayed()
+   {
+        $user = Auth::user();
+    return $user->hasRole('admin') || $user->hasRole('lawyer') || $user->hasRole('tech_admin');
+   }
+
 }

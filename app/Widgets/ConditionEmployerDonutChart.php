@@ -44,4 +44,10 @@ class ConditionEmployerDonutChart extends BaseDimmer
         ]);
     }
 
+     public function shouldBeDisplayed()
+   {
+        $user = Auth::user();
+    return $user->hasRole('admin') || $user->hasRole('lawyer') || $user->hasRole('tech_admin');
+   }
+
 }

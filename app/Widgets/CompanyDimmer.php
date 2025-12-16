@@ -36,8 +36,11 @@ class CompanyDimmer extends BaseDimmer
             'image' => '/fondo_widgets.jpg',
         ]));
     }
-//    public function shouldBeDisplayed()
-//    {
-//        return Auth::user()->can('browse', Voyager::model('User'));
-//    }
+
+     public function shouldBeDisplayed()
+   {
+        $user = Auth::user();
+    return $user->hasRole('admin') || $user->hasRole('lawyer') || $user->hasRole('tech_admin');
+   }
+
 }
