@@ -308,6 +308,42 @@
                  });
             }
 
+            // Conditional Logic: Show ARCA Termination Form only if Status is 'Baja'
+            // Conditional Logic: Show ARCA Termination Form only if Status is 'Baja'
+            function toggleTerminationForm() {
+                var $status = $('[name="approval_status"]');
+                // Use contains selector or exact match for array syntax
+                var $tInput = $('input[name="arca_termination_form[]"]'); 
+                
+                // Fallback attempt if exact match fails
+                if ($tInput.length === 0) {
+                     $tInput = $('input[name^="arca_termination_form"]');
+                }
+
+                var $tGroup = $tInput.closest('.form-group');
+
+                if ($tInput.length === 0) {
+                     console.warn('ARCA Termination Form input not found');
+                     return;
+                }
+
+                // If $status is a collection, val() returns value of first element.
+                // For select, this is usually correct.
+                if ($status.val() === 'Baja') {
+                    $tGroup.show();
+                } else {
+                    $tGroup.hide();
+                }
+            }
+
+            // Initial check
+            toggleTerminationForm();
+
+            // Bind change (standard and select2)
+            $(document).on('change select2:select', '[name="approval_status"]', function() {
+                toggleTerminationForm();
+            });
+
             $('.toggleswitch').bootstrapToggle();
             
             //Init datepicker for date fields if data-datepicker attribute defined
