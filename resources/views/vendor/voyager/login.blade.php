@@ -3,8 +3,8 @@
 @section('content')
     <div class="login-container">
 
-        <div class="text-center" style="margin-bottom: 60px; margin-top: -100px;">
-            <img src="{{ asset('auditex.jpg') }}" alt="Mi Logo" style="max-width: 250px; height: auto;">
+        <div class="text-center" style="margin-bottom: 10px; margin-top: -150px;">
+            <img src="{{ asset('auditex.jpg') }}" alt="Mi Logo" style="max-width: 300px; height: auto;">
         </div>
 
 
