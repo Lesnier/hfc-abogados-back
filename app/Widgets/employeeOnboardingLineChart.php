@@ -10,7 +10,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use App\Models\Employee;
 
-class employeeOnboardingLineChart extends BaseDimmer
+class EmployeeOnboardingLineChart extends BaseDimmer
 {
     /**
      * The configuration array.
