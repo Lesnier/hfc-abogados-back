@@ -45,6 +45,10 @@ class User extends \TCG\Voyager\Models\User
 //        'password' => 'hashed',
 //    ];
 
+    public function company()
+    {
+        return $this->hasMany(Company::class);
+    }
 
     public function lawFirm(): BelongsTo
     {

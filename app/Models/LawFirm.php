@@ -15,6 +15,11 @@ class LawFirm extends Model
         return $this->hasMany(User::class);
     }
 
+    public function companies(): HasMany
+    {
+        return $this->hasMany(Company::class);
+    }
+
 
     public function scopeAccess($query)
     {

@@ -8,10 +8,14 @@ use Illuminate\Database\Eloquent\Model;
 class Supplier extends Model
 {
     protected $table = 'suppliers';
-    protected $fillable = ["identification", "name", "cuil", "condition", "suitable_income", "supplier_id"];
+    protected $fillable = ["identification", "name", "complaint_cc", "risk_end", "cbu_checking_account", "name_bank", "number_checking_account", "company_id","approval_status", "user_id"];
     public function employees()
     {
         return $this->hasMany(Employee::class);
+    }
+    public function company()
+    {
+        return $this->belongsTo(Company::class);
     }
     public function scopeAccess($query)
     {

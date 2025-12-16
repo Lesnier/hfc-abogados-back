@@ -9,7 +9,15 @@ class Employee extends Model
 {
 
     protected $table = 'employees';
-    protected $fillable = ["identification", "name", "cuil", "condition", "suitable_income", "supplier_id"];
+    protected $fillable = ["identification", "name", "cuil", "condition", "suitable_income", "responsible", "approval_status", "cost_center", "validity_from", "validity_to", "supplier_id"];
+
+
+    public function supplier()
+    {
+        return $this->belongsTo(Supplier::class);
+    }
+
+    
 
     public function scopeAccess($query)
     {

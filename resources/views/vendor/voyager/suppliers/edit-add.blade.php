@@ -44,11 +44,6 @@
             border-radius: 4px;
             border: 1px solid #ddd;
         }
-        .pdf-icon-img {
-            width: 20px;
-            height: 20px;
-            object-fit: contain;
-        }
         .remove-file-btn {
             color: #999;
             cursor: pointer;
@@ -58,21 +53,21 @@
         .remove-file-btn:hover {
             color: #d9534f;
         }
-        /* CUIL Validation Styles */
-        .cuil-error {
+        /* CBU Validation Styles */
+        .cbu-error {
             color: #e74c3c;
             font-size: 12px;
             margin-top: 5px;
             display: none;
-            font-weight: normal;
+            font-weight: bold;
         }
-        .has-error .cuil-error {
+        .has-error .cbu-error {
             display: block;
         }
         .has-success .control-label:after {
-         /*   content: " \f00c";*/
-          /*  font-family: Voyager;*/
-          /*  color: #2ecc71;*/
+            content: " \f00c";
+            font-family: Voyager;
+            color: #2ecc71;
         }
     </style>
 @stop
@@ -135,12 +130,7 @@
 
                                 <div class="form-group @if($row->type == 'hidden') hidden @endif col-md-{{ $display_options->width ?? 12 }} {{ $errors->has($row->field) ? 'has-error' : '' }}" @if(isset($display_options->id)){{ "id=$display_options->id" }}@endif>
                                     {{ $row->slugify }}
-                                    <label class="control-label" for="{{ $row->field }}">{{ $row->getTranslatedAttribute('display_name') }}
-                                    </label>
-                                    <!-- CUIL Error Container -->
-                                    @if($row->field == 'cuil')
-                                        <span style="display: inline" class="cuil-error" id="cuil-error-msg">Inválido.</span>
-                                    @endif
+                                    <label class="control-label" for="{{ $row->field }}">{{ $row->getTranslatedAttribute('display_name') }}</label>
                                     @include('voyager::multilingual.input-hidden-bread-edit-add')
                                     @if ($add && isset($row->details->view_add))
                                         @include($row->details->view_add, ['row' => $row, 'dataType' => $dataType, 'dataTypeContent' => $dataTypeContent, 'content' => $dataTypeContent->{$row->field}, 'view' => 'add', 'options' => $row->details])
@@ -161,6 +151,11 @@
                                         @foreach ($errors->get($row->field) as $error)
                                             <span class="help-block">{{ $error }}</span>
                                         @endforeach
+                                    @endif
+                                    
+                                    <!-- CBU Error Container -->
+                                    @if($row->field == 'cbu_checking_account' || $row->field == 'sbu_checking_account')
+                                        <div class="cbu-error" id="cbu-error-msg">El CBU ingresado no es válido para Argentina.</div>
                                     @endif
                                 </div>
                             @endforeach
@@ -184,18 +179,20 @@
         </div>
     </div>
 
-    <!-- Replace included delete modal with inline to enable JS logic and avoid view errors -->
     <div class="modal fade modal-danger" id="confirm_delete_modal">
         <div class="modal-dialog">
             <div class="modal-content">
+
                 <div class="modal-header">
                     <button type="button" class="close" data-dismiss="modal"
                             aria-hidden="true">&times;</button>
                     <h4 class="modal-title"><i class="voyager-warning"></i> {{ __('voyager::generic.are_you_sure') }}</h4>
                 </div>
+
                 <div class="modal-body">
                     <h4>{{ __('voyager::generic.are_you_sure_delete') }} '<span class="confirm_delete_name"></span>'</h4>
                 </div>
+
                 <div class="modal-footer">
                     <button type="button" class="btn btn-default" data-dismiss="modal">{{ __('voyager::generic.cancel') }}</button>
                     <button type="button" class="btn btn-danger" id="confirm_delete">{{ __('voyager::generic.delete_confirm') }}</button>
@@ -227,101 +224,119 @@
             $('#confirm_delete_modal').modal('show');
           };
         }
-        
-        // CUIL Validation Algorithm
-        function validateCUIL(cuil) {
-            cuil = cuil.replace(/\D/g, ''); // Remove non-numeric
-            if (cuil.length !== 11) return false;
 
-            var weights = [5, 4, 3, 2, 7, 6, 5, 4, 3, 2];
-            var sum = 0;
+        // CBU Validation Algorithm
+        function validateCBU(cbu) {
+            cbu = cbu.replace(/\D/g, ''); // Remove non-numeric
+            if (cbu.length !== 22) return false;
 
-            for (var i = 0; i < 10; i++) {
-                sum += parseInt(cuil[i]) * weights[i];
+            var block1 = cbu.substring(0, 8);
+            var block2 = cbu.substring(8, 22);
+
+            var w1 = [7, 1, 3, 9, 7, 1, 3];
+            var w2 = [3, 9, 7, 1, 3, 9, 7, 1, 3, 9, 7, 1, 3];
+
+            // Verify Block 1
+            var sum1 = 0;
+            for (var i = 0; i < 7; i++) {
+                sum1 += parseInt(block1[i]) * w1[i];
             }
+            var mod1 = sum1 % 10;
+            var diff1 = 10 - mod1;
+            var v1 = diff1 === 10 ? 0 : diff1;
 
-            var mod = sum % 11;
-            var verifier = 11 - mod;
+            if (v1 != parseInt(block1[7])) return false;
 
-            if (verifier === 11) verifier = 0;
-            if (verifier === 10) verifier = 9;
+            // Verify Block 2
+            var sum2 = 0;
+            for (var i = 0; i < 13; i++) {
+                sum2 += parseInt(block2[i]) * w2[i];
+            }
+            var mod2 = sum2 % 10;
+            var diff2 = 10 - mod2;
+            var v2 = diff2 === 10 ? 0 : diff2;
 
-            return verifier === parseInt(cuil[10]);
+            if (v2 != parseInt(block2[13])) return false;
+
+            return true;
         }
 
         $(document).ready(function () {
-            console.log("Employees Edit-Add JS Loaded with CUIL Validation");
+            console.log("Suppliers Edit-Add JS Loaded with CBU Validation");
 
-            // Approval Status Restriction Logic
+            // Approval Status Logic
             @if(!$canEditStatus)
                 var $statusSelect = $('[name="approval_status"]');
                 var isAdd = {{ $add ? 'true' : 'false' }};
-                
-                // Disable the field
                 $statusSelect.prop('disabled', true);
-                // Also create a hidden input to submit the value, since disabled fields aren't submitted
-                var $hiddenStatus = $('<input>').attr({
-                    type: 'hidden',
-                    name: 'approval_status',
-                    value: $statusSelect.val()
-                });
+                var $hiddenStatus = $('<input>').attr({type: 'hidden', name: 'approval_status', value: $statusSelect.val()});
                 $statusSelect.after($hiddenStatus);
-
-                if (isAdd) {
-                    // Default to 'Revisión'
-                    $statusSelect.val('Revisión').trigger('change');
-                    $hiddenStatus.val('Revisión');
-                }
+                if (isAdd) { $statusSelect.val('Revisión').trigger('change'); $hiddenStatus.val('Revisión'); }
             @endif
 
-            // CUIL Field Validation
-            var $cuilInput = $('input[name="cuil"]');
+            // CBU Field Validation
+            var $cbuInput = $('input[name="cbu_checking_account"], input[name="sbu_checking_account"]');
             var $submitBtn = $('.btn.save');
-            var $cuilError = $('#cuil-error-msg');
-            var $formGroup = $cuilInput.closest('.form-group');
+            var $cbuError = $('#cbu-error-msg');
+            var $formGroup = $cbuInput.closest('.form-group');
 
-            function checkCuil() {
-                var val = $cuilInput.val();
+            function checkCbu() {
+                var val = $cbuInput.val();
+                
+                // Sync to CBU if using SBU (for DB saving)
+                if ($cbuInput.attr('name') === 'sbu_checking_account') {
+                    var $hiddenCbu = $('input[name="cbu_checking_account"][type="hidden"]');
+                    if ($hiddenCbu.length === 0) {
+                        $hiddenCbu = $('<input>').attr({
+                            type: 'hidden',
+                            name: 'cbu_checking_account',
+                            value: val
+                        });
+                        $('form').append($hiddenCbu);
+                    } else {
+                        $hiddenCbu.val(val);
+                    }
+                }
+
                 if (!val) {
-                     // If empty, not invalid logic (unless required)
+                     // If empty, not invalid (unless required, which HTML handled or backend)
                      $formGroup.removeClass('has-error has-success');
-                     $cuilError.hide();
+                     $cbuError.hide();
                      $submitBtn.prop('disabled', false);
                      return;
                 }
                 
-                if (validateCUIL(val)) {
+                if (validateCBU(val)) {
                     $formGroup.removeClass('has-error').addClass('has-success');
-                    $cuilError.hide();
+                    $cbuError.hide();
                     $submitBtn.prop('disabled', false);
                 } else {
                     $formGroup.removeClass('has-success').addClass('has-error');
-                    $cuilError.show();
+                    $cbuError.show();
                     $submitBtn.prop('disabled', true);
                 }
             }
 
-            if ($cuilInput.length > 0) {
-                 checkCuil();
-                 $cuilInput.on('input change keyup', function() {
-                    checkCuil();
-                 });
+            if ($cbuInput.length > 0) {
+                // Check on load (if editing)
+                checkCbu();
+                
+                // Check on input
+                $cbuInput.on('input change keyup', function() {
+                    checkCbu();
+                });
             }
 
             $('.toggleswitch').bootstrapToggle();
             
-            //Init datepicker for date fields if data-datepicker attribute defined
-            //or if browser does not handle date inputs
+            // Standard Datepicker Init
             $('.form-group input[type=date]').each(function (idx, elt) {
                 if (elt.hasAttribute('data-datepicker')) {
                     elt.type = 'text';
                     $(elt).datetimepicker($(elt).data('datepicker'));
                 } else if (elt.type != 'date') {
                     elt.type = 'text';
-                    $(elt).datetimepicker({
-                        format: 'L',
-                        extraFormats: [ 'YYYY-MM-DD' ]
-                    }).datetimepicker($(elt).data('datepicker'));
+                    $(elt).datetimepicker({ format: 'L', extraFormats: [ 'YYYY-MM-DD' ] }).datetimepicker($(elt).data('datepicker'));
                 }
             });
 
@@ -329,10 +344,7 @@
                 $('.side-body').multilingual({"editing": true});
             @endif
 
-            $('.side-body input[data-slug-origin]').each(function(i, el) {
-                $(el).slugify();
-            });
-
+            $('.side-body input[data-slug-origin]').each(function(i, el) { $(el).slugify(); });
             $('.form-group').on('click', '.remove-multi-image', deleteHandler('img', true));
             $('.form-group').on('click', '.remove-single-image', deleteHandler('img', false));
             $('.form-group').on('click', '.remove-multi-file', deleteHandler('a', true));
@@ -340,148 +352,16 @@
 
             $('#confirm_delete').on('click', function(){
                 $.post('{{ route('voyager.'.$dataType->slug.'.media.remove') }}', params, function (response) {
-                    if ( response
-                        && response.data
-                        && response.data.status
-                        && response.data.status == 200 ) {
-
+                    if ( response && response.data && response.data.status && response.data.status == 200 ) {
                         toastr.success(response.data.message);
-                        // Reset Custom UI if exists
-                        var $customWrapper = $file.parent().closest('.form-group').find('.custom-file-input-wrapper');
-                        if ($customWrapper.length > 0) {
-                             $customWrapper.find('.file-preview-info').hide();
-                             $customWrapper.find('.btn-file-select').show();
-                             $customWrapper.find('input[type="file"]').val('');
-                        }
                         $file.parent().fadeOut(300, function() { $(this).remove(); })
                     } else {
                         toastr.error("Error removing file.");
                     }
                 });
-
                 $('#confirm_delete_modal').modal('hide');
             });
             $('[data-toggle="tooltip"]').tooltip();
-
-            // Custom File Input Logic
-            console.log("Searching for file inputs...");
-            var $fileInputs = $('input[type="file"]');
-            console.log("Found " + $fileInputs.length + " file inputs.");
-            
-            $fileInputs.each(function() {
-                var $input = $(this);
-                // Check if already processed
-                if ($input.closest('.custom-file-input-wrapper').length > 0) return;
-
-                // Voyager structure: The input is usually inside a form-group. 
-                // Existing files are usually in a div or directly as siblings. 
-                // User says: <div data-field-name="..."><a ...></a><a class="voyager-x ..."></a></div>
-                // The input might be a sibling of that div, or inside the form group.
-                
-                var $formGroup = $input.closest('.form-group');
-                var $existingFileContainer = $formGroup.find('[data-field-name]');
-                var $existingLink = $existingFileContainer.find('a').not('.voyager-x'); // The file link
-                var $existingRemoveBtn = $existingFileContainer.find('.voyager-x');    // The remove X link
-                
-                var existingFileName = '';
-                
-                // If we found an existing file link
-                if ($existingLink.length > 0) {
-                    existingFileName = $existingLink.data('file-name') || $existingLink.text();
-                    // Hide original Voyager elements so our UI takes over
-                    $existingFileContainer.hide(); 
-                }
-
-                // Create UI elements
-                var $wrapper = $('<div class="custom-file-input-wrapper"></div>');
-                var $btn = $('<button type="button" class="btn-file-select"><i class="voyager-upload"></i> Seleccionar Archivo</button>');
-                var $preview = $('<div class="file-preview-info" style="display:none;">' +
-                                    '<i class="voyager-file-text" style="font-size: 20px; color: #e74c3c;"></i>' +
-                                    '<span class="file-name"></span>' +
-                                    '<i class="voyager-x remove-file-btn" title="Quitar"></i>' +
-                                 '</div>');
-                
-                // Insert wrapper before input, then move input inside
-                $input.before($wrapper);
-                $wrapper.append($input);
-                $wrapper.append($btn);
-                $wrapper.append($preview);
-
-                function truncateFileName(name) {
-                    if (name.length > 13) {
-                        return name.substring(0, 13) + '...';
-                    }
-                    return name;
-                }
-
-                // Initial State: If existing file found
-                if (existingFileName) {
-                    $wrapper.find('.file-name').text(truncateFileName(existingFileName)).attr('title', existingFileName);
-                    $preview.css('display', 'flex');
-                    $btn.hide();
-                }
-
-                // Events
-                $btn.on('click', function() {
-                    $input.trigger('click');
-                });
-
-                $input.on('change', function() {
-                    var file = this.files[0];
-                    if (file) {
-                        $wrapper.find('.file-name').text(truncateFileName(file.name)).attr('title', file.name);
-                        $preview.css('display', 'flex');
-                        $btn.hide(); 
-                    }
-                });
-
-                $wrapper.on('click', '.remove-file-btn', function() {
-                    if ($input.val()) {
-                        // Case A: User selected a NEW file, and wants to clear it.
-                        // Just clear input and return to start state
-                        $input.val(''); 
-                        // If there was an existing file before, we might want to show it again?
-                        // For simplicity, let's just show "Select File".
-                        // Logic: If we clear new file, and there is an existing file hidden...
-                        // If we show "Select File", and they submit, the existing file remains in DB (Voyager logic).
-                        // So showing "Select File" is fine, effectively "Undo new selection".
-                    } 
-                    
-                    // Case B: There is an existing file (and no new file selected, or we just cleared it)
-                    // and the user wants to remove the EXISTING file.
-                    // Wait, if we are in state "New File Selected", clicking X should just clear new file.
-                    // If we are in state "Existing File Shown", clicking X should TRIGGER REMOVE of existing file.
-                    
-                    if (existingFileName && !$input.val()) {
-                         // We are showing the existing file. Pass the click to the real remove button.
-                         if ($existingRemoveBtn.length > 0) {
-                             $existingRemoveBtn[0].click(); // Trigger native DOM click to be safe or jQuery click
-                         } else {
-                             console.log("Original remove button not found");
-                         }
-                    } else {
-                        // Just clearing the UI
-                        $preview.hide();
-                        $btn.show();
-                        // If there was an existing file, we hidden it. 
-                        // Should we show it? No, because "Select File" implies replacing it?
-                        // Actually if we clear the NEW selection, we probably should revert to showing the OLD selection if it wasn't deleted?
-                        // But verifying that "Undo" logic is complex.
-                        // Let's assume standard behavior: clear UI = ready for new input.
-                        // But if there WAS an existing file, and we reset, the user might see "Select File" and think "Empty". 
-                        // If they submit, Voyager usually keeps the old file if input is empty.
-                        // To allow DELETING the old file, they need to see the "Existing File" UI.
-                        
-                        if (existingFileName) {
-                            // If we just cleared a new input, let's restore the view of the existing file
-                            // so they have the option to delete it if they want.
-                             $wrapper.find('.file-name').text(existingFileName);
-                             $preview.css('display', 'flex');
-                             $btn.hide();
-                        }
-                    }
-                });
-            });
         });
     </script>
 @stop

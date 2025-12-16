@@ -43,6 +43,27 @@ Route::group(['prefix' => 'admin'], function () {
         Route::post('/check', [\App\Http\Controllers\SecurityController::class, 'check'])
             ->name('check'); // Nombre: voyager.security.check
     });
+    // Reports Module Routes
+    Route::group([
+        'as'     => 'voyager.reports.',
+        'prefix' => 'reports',
+        'middleware' => ['web', 'admin.user'],
+    ], function () {
+        Route::get('/', [\App\Http\Controllers\ReportController::class, 'index'])->name('index');
+        Route::post('/generate', [\App\Http\Controllers\ReportController::class, 'generate'])->name('generate');
+        Route::get('/filters', [\App\Http\Controllers\ReportController::class, 'getFilters'])->name('filters'); // New AJAX route
+    });
+
+    // CSV Import Routes
+    Route::group([
+        'as'     => 'voyager.csv-import.',
+        'prefix' => 'import-csv',
+        'middleware' => ['web', 'admin.user'],
+    ], function () {
+        Route::get('/{slug}/template', [\App\Http\Controllers\CsvImportController::class, 'downloadTemplate'])->name('template');
+        Route::post('/{slug}', [\App\Http\Controllers\CsvImportController::class, 'import'])->name('import');
+    });
+
     // --- FIN DE RUTAS PERSONALIZADAS ---
 });
 

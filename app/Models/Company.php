@@ -7,6 +7,20 @@ use Illuminate\Database\Eloquent\Model;
 
 class Company extends Model
 {
+
+protected $table = 'companies';
+    protected $fillable = ["identification", "name", "country", "user_id", "logo", "phone", "email", "law_firm_id"];
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function law_firm()
+    {
+        return $this->belongsTo(LawFirm::class);
+    }
+
     public function suppliers()
     {
         return $this->hasMany(Supplier::class);
