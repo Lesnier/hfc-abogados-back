@@ -11,6 +11,7 @@
         "laravel/framework": "^10.10",
         "laravel/sanctum": "^3.3",
         "laravel/tinker": "^2.8",
+        "owen-it/laravel-auditing": "^13.7",
         "tcg/voyager": "^1.7"
     },
     "require-dev": {

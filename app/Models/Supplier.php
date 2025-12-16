@@ -3,10 +3,11 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use OwenIt\Auditing\Contracts\Auditable;
 
-
-class Supplier extends Model
+class Supplier extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
     protected $table = 'suppliers';
     protected $fillable = ["identification", "name", "complaint_cc", "risk_end", "cbu_checking_account", "name_bank", "number_checking_account", "company_id","approval_status", "user_id"];
     public function employees()
