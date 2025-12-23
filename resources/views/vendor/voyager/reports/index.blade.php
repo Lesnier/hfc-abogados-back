@@ -60,6 +60,35 @@
                                 </div>
                             </div>
 
+                            <div class="row">
+                                <div class="col-md-3 form-group">
+                                    <label for="approval_status">Estado</label>
+                                    <select class="form-control" name="approval_status">
+                                        <option value="">Todos</option>
+                                        <option value="Revisión">Revisión</option>
+                                        <option value="Aprobado">Aprobado</option>
+                                        <option value="Rechazado">Rechazado</option>
+                                        <option value="Baja">Baja</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3 form-group">
+                                    <label for="enabled">Habilitado (Vigente)</label>
+                                    <select class="form-control" name="enabled">
+                                        <option value="">Todos</option>
+                                        <option value="1">Si</option>
+                                        <option value="0">No</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3 form-group">
+                                    <label for="cost_center">Centro de Costo</label>
+                                    <input type="text" class="form-control" name="cost_center" placeholder="Buscar...">
+                                </div>
+                                <div class="col-md-3 form-group">
+                                    <label for="responsible">Responsable</label>
+                                    <input type="text" class="form-control" name="responsible" placeholder="Buscar...">
+                                </div>
+                            </div>
+
                             <div class="form-group text-right">
                                 <button type="submit" class="btn btn-primary">
                                     <i class="voyager-download"></i> Generar PDF

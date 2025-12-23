@@ -160,6 +160,32 @@ class ReportController extends Controller
                     if ($endDate) {
                         $q->whereDate('employees.created_at', '<=', $endDate);
                     }
+                    
+                    // New Filters
+                    if ($request->filled('approval_status')) {
+                        $q->where('employees.approval_status', $request->approval_status);
+                    }
+                    
+                    if ($request->filled('enabled')) {
+                        $now = Carbon::now()->toDateString();
+                        if ($request->enabled == '1') {
+                            $q->whereDate('employees.validity_from', '<=', $now)
+                              ->whereDate('employees.validity_to', '>=', $now);
+                        } elseif ($request->enabled == '0') {
+                            $q->where(function($query) use ($now) {
+                                $query->whereDate('employees.validity_from', '>', $now)
+                                      ->orWhereDate('employees.validity_to', '<', $now);
+                            });
+                        }
+                    }
+
+                    if ($request->filled('cost_center')) {
+                        $q->where('employees.cost_center', 'like', '%' . $request->cost_center . '%');
+                    }
+
+                    if ($request->filled('responsible')) {
+                        $q->where('employees.responsible', 'like', '%' . $request->responsible . '%');
+                    }
                 }]);
             }])
             ->get();

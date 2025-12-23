@@ -35,9 +35,21 @@
     <div class="header">
         <h1>Reporte de Gestión</h1>
         <div class="meta">
-            <strong>Generado por:</strong> {{ auth()->user()->name }} <br>
+            <strong>Generado por:</strong> {{ $generated_by ?? (auth()->user() ? auth()->user()->name : 'Sistema') }} <br>
             <strong>Fecha:</strong> {{ date('d/m/Y H:i') }} <br>
-            <strong>Periodo:</strong> {{ $start_date ?? 'Inicio' }} - {{ $end_date ?? 'Actualidad' }}
+            <strong>Periodo:</strong> {{ $start_date ?? 'Inicio' }} - {{ $end_date ?? 'Actualidad' }} <br>
+            @if(isset($filters['approval_status']) && $filters['approval_status'])
+                <strong>Estado:</strong> {{ $filters['approval_status'] }} <br>
+            @endif
+            @if(isset($filters['enabled']))
+                <strong>Habilitado:</strong> {{ $filters['enabled'] == '1' ? 'Si' : 'No' }} <br>
+            @endif
+            @if(isset($filters['cost_center']) && $filters['cost_center'])
+                <strong>Centro Costo:</strong> {{ $filters['cost_center'] }} <br>
+            @endif
+            @if(isset($filters['responsible']) && $filters['responsible'])
+                <strong>Responsable:</strong> {{ $filters['responsible'] }} <br>
+            @endif
         </div>
     </div>
 
@@ -86,6 +98,7 @@
                                         <th>Estado</th>
                                         <th>Condición</th>
                                         <th>Alta</th>
+                                        <th>Vencimiento</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -97,7 +110,12 @@
                                                 {{ $employee->approval_status }}
                                             </td>
                                             <td>{{ $employee->condition }}</td>
-                                            <td>{{ $employee->created_at ? $employee->created_at->format('d/m/Y') : '-' }}</td>
+                                            <td>{{ $employee->validity_from ? $employee->validity_from->format('d/m/Y') : '-' }}
+
+                                            </td>
+                                            <td>{{ $employee->validity_to ? $employee->validity_to->format('d/m/Y') : '-' }}
+
+                                            </td>
                                         </tr>
                                     @endforeach
                                 </tbody>

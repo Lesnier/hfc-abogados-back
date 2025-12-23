@@ -12,6 +12,11 @@ class Employee extends Model implements Auditable
     protected $table = 'employees';
     protected $fillable = ["identification", "name", "cuil", "condition", "suitable_income", "responsible", "approval_status", "cost_center", "validity_from", "validity_to", "supplier_id"];
 
+    protected $casts = [
+        'validity_from' => 'date',
+        'validity_to' => 'date',
+    ];
+
 
     public function supplier()
     {

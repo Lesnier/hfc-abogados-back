@@ -14,7 +14,7 @@
             display: flex;
             align-items: center;
             gap: 10px;
-            margin-top: 5px;
+            margin-top: 1px;
         }
         .custom-file-input-wrapper input[type="file"] {
             display: none !important;
@@ -23,7 +23,7 @@
             background-color: #e74c3c; /* Red color */
             color: white;
             border: none;
-            padding: 8px 15px;
+            padding: 6px 15px;
             border-radius: 4px;
             cursor: pointer;
             font-weight: bold;
@@ -31,6 +31,7 @@
             align-items: center;
             gap: 5px;
             transition: background 0.3s;
+            width: 100%;
         }
         .btn-file-select:hover {
             background-color: #c0392b;
@@ -40,9 +41,11 @@
             align-items: center;
             gap: 10px;
             background: #f8f9fa;
-            padding: 5px 10px;
+            padding: 1px 10px;
             border-radius: 4px;
             border: 1px solid #ddd;
+            width: 100%;
+            height: 34px;
         }
         .pdf-icon-img {
             width: 20px;
@@ -432,8 +435,8 @@
                 var $wrapper = $('<div class="custom-file-input-wrapper"></div>');
                 var $btn = $('<button type="button" class="btn-file-select"><i class="voyager-upload"></i> Seleccionar Archivo</button>');
                 var $preview = $('<div class="file-preview-info" style="display:none;">' +
-                                    '<i class="voyager-file-text" style="font-size: 20px; color: #e74c3c;"></i>' +
-                                    '<span class="file-name"></span>' +
+                                    '<i class="voyager-file-text" style="font-size: 16px; color: #e74c3c;margin-top: 4px;"></i>' +
+                                    '<span class="file-name" style="width: 100%;"></span>' +
                                     '<i class="voyager-x remove-file-btn" title="Quitar"></i>' +
                                  '</div>');
                 
@@ -444,8 +447,8 @@
                 $wrapper.append($preview);
 
                 function truncateFileName(name) {
-                    if (name.length > 13) {
-                        return name.substring(0, 13) + '...';
+                    if (name.length > 20) {
+                        return name.substring(0, 20) + '...';
                     }
                     return name;
                 }
