@@ -20,15 +20,17 @@
             overflow: hidden; /* Ensure rounded corners if we wanted them */
         }
         .header {          
-            padding: 10px 10px 15px 10px;
+            padding: 10px 20px 5px 20px;
             text-align: center;
             border-bottom: 2px solid #edeff2;
+            border-top: 25px solid #181b38ff;
+            background-color: #f8f8f8ff;
         }
         .subheader {
-            padding: 10px 10px 15px 10px;
+            padding: 20px 20px 15px 20px;
             text-align: center;
             border-bottom: 2px solid #edeff2;
-            background-color: #333657ff; /* Very Light Grey */
+            background-color: #181b38ff; /* Very Light Grey */
         }
         .header h2 {
             margin: 5px 0 0;
@@ -55,7 +57,7 @@
             margin-bottom: 20px;
         }
         .footer {
-            background-color: #1a1a1a;
+            background-color: #181b38ff;
             padding: 30px 20px;
             text-align: center;
             color: #888888;
@@ -85,8 +87,8 @@
     <div class="container">
         <div class="header">
             <!-- Logo -->
-            <div style="margin-bottom: 10px;">
-                <img src="https://legalauditex.ar/Logo-LegalAuditex-500px.png" width="180" alt="Legal Auditex" style="border:0; display:inline-block;">
+            <div style="">
+                <img src="https://legalauditex.ar/logo-500px.png" width="180" alt="Legal Auditex" style="border:0; display:inline-block;">
             </div>
             
         </div>
@@ -94,13 +96,13 @@
 
              <!-- Category -->
                  @if(isset($category))
-                <div style="font-size: 11px; font-weight: bold; color: #7c8891ff; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 2px;">
+                <div style="font-size: 11px; font-weight: bold; color: #f1d194ff; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 2px;">
                     {{ $category }}
                 </div>
                 @endif
 
             <!-- Date -->
-            <div style="font-size: 13px; color: #707070ff; margin-bottom: 8px; text-transform: capitalize;">
+            <div style="font-size: 13px; color: #adb3ccff; margin-bottom: 8px; text-transform: capitalize;">
                 {{ \Carbon\Carbon::now()->locale('es')->isoFormat('dddd, D [de] MMMM [de] YYYY') }}
             </div>
 
