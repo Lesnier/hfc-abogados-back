@@ -19,28 +19,35 @@
             box-shadow: 0 0 10px rgba(0,0,0,0.05);
             overflow: hidden; /* Ensure rounded corners if we wanted them */
         }
-        .header {
-            background-color: #2b3e50; /* Dark Blue */
-            padding: 40px 20px;
+        .header {          
+            padding: 10px 10px 15px 10px;
             text-align: center;
-            color: #ffffff;
+            border-bottom: 2px solid #edeff2;
+        }
+        .subheader {
+            padding: 10px 10px 15px 10px;
+            text-align: center;
+            border-bottom: 2px solid #edeff2;
+            background-color: #333657ff; /* Very Light Grey */
         }
         .header h2 {
-            margin: 10px 0 0;
-            font-size: 24px;
+            margin: 5px 0 0;
+            font-size: 20px;
             font-weight: 700;
+            color: #ffffff;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 0.5px;
         }
-        .header .category {
-            font-size: 12px;
+        .subheader h2 {
+            margin: 5px 0 0;
+            font-size: 20px;
+            font-weight: 700;
+            color: #ffffff;
             text-transform: uppercase;
-            color: #a3b6c5; /* Lighter blue/gray for subtitle */
-            letter-spacing: 2px;
-            font-weight: 600;
+            letter-spacing: 0.5px;
         }
         .body {
-            padding: 40px 30px;
+            padding: 30px 30px 40px;
             color: #555555;
             font-size: 16px;
         }
@@ -48,7 +55,7 @@
             margin-bottom: 20px;
         }
         .footer {
-            background-color: #1a1a1a; /* Black/Dark */
+            background-color: #1a1a1a;
             padding: 30px 20px;
             text-align: center;
             color: #888888;
@@ -77,14 +84,29 @@
 <body>
     <div class="container">
         <div class="header">
-            <div style="font-size: 13px; color: #a3b6c5; margin-bottom: 10px; text-transform: capitalize;">
+            <!-- Logo -->
+            <div style="margin-bottom: 10px;">
+                <img src="https://legalauditex.ar/Logo-LegalAuditex-500px.png" width="180" alt="Legal Auditex" style="border:0; display:inline-block;">
+            </div>
+            
+        </div>
+         <div class="subheader">
+
+             <!-- Category -->
+                 @if(isset($category))
+                <div style="font-size: 11px; font-weight: bold; color: #7c8891ff; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 2px;">
+                    {{ $category }}
+                </div>
+                @endif
+
+            <!-- Date -->
+            <div style="font-size: 13px; color: #707070ff; margin-bottom: 8px; text-transform: capitalize;">
                 {{ \Carbon\Carbon::now()->locale('es')->isoFormat('dddd, D [de] MMMM [de] YYYY') }}
             </div>
-            @if(isset($category))
-                <div class="category">{{ $category }}</div>
-            @endif
+
+            <!-- Title -->
             <h2>{{ $title }}</h2>
-        </div>
+            </div>
         
         <div class="body">
             {!! $body !!}

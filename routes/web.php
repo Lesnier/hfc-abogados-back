@@ -176,3 +176,14 @@ Route::get('/deploy/optimize', function () {
 
     return response()->json(['message' => 'Optimized']);
 });
+
+// Ruta para visualizar el template de correo
+Route::get('/test-email', function () {
+    return view('emails.generic', [
+        'category' => 'Reporte Diario',
+        'title' => 'Resumen de Empleados Vencidos',
+        'body' => '<p>Estimado/a,</p><p>Esto es una prueba de visualización del cuerpo del correo. Aquí iría el contenido dinámico.</p><p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam in dui mauris.</p>',
+        'lawFirmName' => 'Firma de Abogados Demo',
+        'platformName' => 'Legal Auditex'
+    ]);
+});
