@@ -1,4 +1,4 @@
-name: Ejecutar Tareas Laravel
+name: Ejecutar Checkeo de Empleados
 on:
   schedule:
     - cron: '*/2 * * * *'
@@ -8,7 +8,7 @@ jobs:
   hit-endpoint:
     runs-on: ubuntu-latest
     steps:
-      - name: Llamar Endpoint Protegido
+      - name: Llamada de checkeo de expiracion de empleado
         run: |
           # El token se concatena de forma segura en la URL
-          curl -X GET "http://legalauditex.ar/cron/check-expired-employees?token=${{ secrets.CRON_TOKEN }}"
+          curl -X GET "http://legalauditex.ar/cron/check-expired-employees?token=${{ secrets.DEPLOY_TOKEN }}"
