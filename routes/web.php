@@ -26,8 +26,7 @@ Route::group(['prefix' => 'admin'], function () {
     Voyager::routes();
 
     // Override Employees Update Route (Must be AFTER Voyager::routes())
-    Route::put('employees/{id}', [\App\Http\Controllers\Voyager\EmployeesController::class, 'update'])
-        ->name('voyager.employees.update');
+    Route::put('employees/{id}', [\App\Http\Controllers\Voyager\EmployeesController::class, 'update']);
 
 
     Route::group([
