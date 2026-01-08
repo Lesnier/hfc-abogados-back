@@ -1,7 +1,7 @@
 name: Ejecutar Checkeo de Empleados
 on:
   schedule:
-    - cron: '*/2 * * * *'
+    - cron: '*/6 * * * *'
   workflow_dispatch:
 
 jobs:
