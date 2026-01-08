@@ -169,12 +169,207 @@
                             @endforeach
 
                         </div><!-- panel-body -->
+                        
+                        {{-- Document Versioning Matrix Section --}}
+                        @if($edit && $dataTypeContent->getKey() && (auth()->user()->hasRole('lawyer') || auth()->user()->hasRole('admin') || auth()->user()->hasRole('tech_admin')))
+                            <div class="panel-body" style="background: #f9f9f9; border-top: 1px solid #eee; padding-top: 25px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                                    <h3 class="panel-title" style="margin: 0;"><i class="voyager-documentation"></i> Historial de Documentos</h3>
+                                    <button type="button" class="btn btn-success btn-new-version">
+                                        <i class="voyager-plus"></i> Nueva Versión (Mes Actual)
+                                    </button>
+                                </div>
+
+                                <div class="table-responsive">
+                                    <table class="table table-bordered table-hover" id="doc-versions-table">
+                                        <thead>
+                                            <tr>
+                                                <th style="width: 100px;">Versión</th>
+                                                <th style="width: 120px;">Fecha</th>
+                                                <th>Form. 931</th>
+                                                <th>Póliza</th>
+                                                <th>Seg. Vida</th>
+                                                <th>Recibo</th>
+                                                <th>Repetición</th>
+                                                <th>Indemnidad</th>
+                                                <th>Anexo</th>
+                                                <th>Baja ARCA</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @php
+                                                $docTypes = [
+                                                    'form_931', 'policy', 'life_insurance', 'salary_receipt', 
+                                                    'repetition', 'indemnity', 'proof_discharge', 'arca_termination_form'
+                                                ];
+                                            @endphp
+                                            @foreach($dataTypeContent->docVersions as $version)
+                                                <tr data-version-id="{{ $version->id }}">
+                                                    <td class="text-center"><strong>V{{ $version->version_number }}</strong></td>
+                                                    <td>{{ $version->effective_date->format('d/m/Y') }}</td>
+                                                    @foreach($docTypes as $type)
+                                                        @php
+                                                            $file = $version->files->where('doc_type', $type)->first();
+                                                            $filePath = null;
+                                                            if ($file && $file->file_path && $file->file_path != '[]') {
+                                                                $json = json_decode($file->file_path, true);
+                                                                if (json_last_error() === JSON_ERROR_NONE && is_array($json)) {
+                                                                    if (count($json) > 0) {
+                                                                        // Support both object structure and simple string array
+                                                                        if (isset($json[0]['download_link'])) {
+                                                                             $filePath = $json[0]['download_link'];
+                                                                        } else {
+                                                                             $filePath = $json[0];
+                                                                        }
+                                                                    }
+                                                                } else {
+                                                                    $filePath = $file->file_path; // Legacy string
+                                                                }
+                                                            }
+                                                            
+                                                            // Ensure file object exists for note ID if path is null
+                                                            $fileId = $file ? $file->id : null;
+                                                            $fileNote = $file ? $file->note : null;
+                                                        @endphp
+                                                        <td class="text-center" style="vertical-align: middle; padding: 5px;">
+                                                            <div class="doc-slot" data-type="{{ $type }}" style="display: flex; gap: 5px; justify-content: center; align-items: center;">
+                                                                @if($filePath)
+                                                                    <a href="{{ Storage::url($filePath) }}" target="_blank" class="btn btn-xs btn-info" style="margin: 0; padding: 2px 5px;" title="Ver Documento">
+                                                                        <i class="voyager-eye"></i>
+                                                                    </a>
+                                                                    <input type="checkbox" class="approval-toggle" data-file-id="{{ $fileId }}" {{ $file->is_approved ? 'checked' : '' }} title="Aprobado?" style="margin: 0; transform: scale(1.2);">
+                                                                @endif
+                                                                
+                                                                {{-- Note Button always visible if file record exists (created by version logic), or handling empty slot logic? --}}
+                                                                {{-- Version logic creates records for all slots? No, createVersion loops existing files. Empty slots might not have rows in DocFile? --}}
+                                                                {{-- If no DocFile row, we can't save note to it. BUT createVersion logic only creates if existing. --}}
+                                                                {{-- Actually, createVersion clones. If a type didn't exist, no row. --}}
+                                                                {{-- If we want to add note to empty, we need a DocFile record. --}}
+                                                                {{-- For now, show btn only if $file exists (record exists, even if path empty? No, path empty usually implies no record unless cleared?) --}}
+                                                                {{-- If user deletes file, record stays with null path? Let's check Observer. --}}
+                                                                {{-- Observer uses updateOrCreate. So record exists. --}}
+                                                                
+                                                                @if($fileId)
+                                                                    <button type="button" class="btn btn-xs {{ $fileNote ? 'btn-warning' : 'btn-default' }} btn-note" 
+                                                                            data-file-id="{{ $fileId }}" 
+                                                                            data-note="{{ $fileNote }}" 
+                                                                            style="margin: 0; padding: 2px 5px;" title="Nota/Observación">
+                                                                        <i class="voyager-edit"></i>
+                                                                    </button>
+                                                                @endif
+                                                                
+                                                                <button type="button" class="btn btn-xs btn-default btn-upload-doc" style="margin: 0; padding: 2px 5px;" title="Subir/Actualizar">
+                                                                    <i class="voyager-upload"></i>
+                                                                </button>
+                                                                <input type="file" class="hidden-doc-input" style="display:none;" data-version-id="{{ $version->id }}" data-type="{{ $type }}">
+                                                            </div>
+                                                        </td>
+                                                    @endforeach
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            
+                            <script>
+                                document.addEventListener("DOMContentLoaded", function() {
+                                    // New Version
+                                    $('.btn-new-version').click(function() {
+                                        var btn = $(this);
+                                        btn.prop('disabled', true).html('<i class="voyager-refresh"></i> Creando...');
+                                        
+                                        $.post('{{ route('voyager.doc-versioning.create-version', $dataTypeContent->id) }}', {
+                                            _token: '{{ csrf_token() }}'
+                                        })
+                                        .done(function(res) {
+                                            if(res.success) {
+                                                toastr.success(res.message);
+                                                location.reload(); // Reload to show new row
+                                            } else {
+                                                toastr.error('Error creando versión');
+                                                btn.prop('disabled', false).html('<i class="voyager-plus"></i> Nueva Versión');
+                                            }
+                                        })
+                                        .fail(function() {
+                                            toastr.error('Error de servidor');
+                                            btn.prop('disabled', false).html('<i class="voyager-plus"></i> Nueva Versión');
+                                        });
+                                    });
+
+                                    // Trigger Upload
+                                    $(document).on('click', '.btn-upload-doc', function() {
+                                        $(this).siblings('input[type="file"]').click();
+                                    });
+
+                                    // Handle File Selection
+                                    $(document).on('change', '.hidden-doc-input', function() {
+                                        var input = this;
+                                        var versionId = $(this).data('version-id');
+                                        var docType = $(this).data('type');
+                                        
+                                        if (input.files && input.files[0]) {
+                                            var formData = new FormData();
+                                            formData.append('file', input.files[0]);
+                                            formData.append('doc_type', docType);
+                                            formData.append('_token', '{{ csrf_token() }}');
+
+                                            var url = '{{ route('voyager.doc-versioning.upload-file', ['version' => '__ver__']) }}'.replace('__ver__', versionId);
+
+                                            toastr.info('Subiendo archivo...');
+
+                                            $.ajax({
+                                                url: url,
+                                                type: 'POST',
+                                                data: formData,
+                                                processData: false,
+                                                contentType: false,
+                                                success: function(res) {
+                                                    if(res.success) {
+                                                        toastr.success('Archivo subido correctamente');
+                                                        location.reload(); // Reload to update UI state (simplest way)
+                                                    } else {
+                                                        toastr.error('Error subiendo archivo');
+                                                    }
+                                                },
+                                                error: function() {
+                                                    toastr.error('Error al subir archivo');
+                                                }
+                                            });
+                                        }
+                                    });
+
+                                    // Toggle Approval
+                                    $(document).on('change', '.approval-toggle', function() {
+                                        var fileId = $(this).data('file-id');
+                                        var url = '{{ route('voyager.doc-versioning.toggle-approval', ['file' => '__file__']) }}'.replace('__file__', fileId);
+                                        
+                                        $.post(url, { _token: '{{ csrf_token() }}' })
+                                        .done(function(res) {
+                                            if(res.success) {
+                                                toastr.success('Estado actualizado');
+                                            }
+                                        });
+                                    });
+                                });
+                            </script>
+                        @endif
 
                         <div class="panel-footer">
                             @section('submit-buttons')
                                 <button type="submit" class="btn btn-primary save">{{ __('voyager::generic.save') }}</button>
                             @stop
                             @yield('submit-buttons')
+                            
+                            <!-- Checkbox Notificar -->
+                            @if(auth()->user()->hasRole('lawyer') || auth()->user()->hasRole('admin'))
+                                <div style="display: inline-block; margin-left: 20px; vertical-align: middle;">
+                                    <label style="cursor: pointer; font-weight: bold; margin: 0;">
+                                        <input type="checkbox" name="notify_supplier" value="1" style="transform: scale(1.2); margin-right: 5px;">
+                                        Notificar por correo
+                                    </label>
+                                </div>
+                            @endif
                         </div>
                     </form>
 
@@ -182,6 +377,30 @@
                         <input type="hidden" id="upload_url" value="{{ route('voyager.upload') }}">
                         <input type="hidden" id="upload_type_slug" value="{{ $dataType->slug }}">
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Note Modal -->
+    <div class="modal fade" id="note_modal" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title">Nota / Observación</h4>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="note_file_id">
+                    <div class="form-group">
+                        <label for="note_text">Escriba su observación (opcional):</label>
+                        <textarea class="form-control" id="note_text" rows="5" placeholder="Ej: Documento borroso, falta firma..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-warning pull-left" id="btn_clear_note">Limpiar</button>
+                    <button type="button" class="btn btn-primary" id="btn_save_note">Guardar Nota</button>
                 </div>
             </div>
         </div>
@@ -254,6 +473,49 @@
 
         $(document).ready(function () {
             console.log("Employees Edit-Add JS Loaded with CUIL Validation");
+
+             // JS Logic for Note Modal
+             $(document).on('click', '.btn-note', function() {
+                 var fileId = $(this).data('file-id');
+                 var currentNote = $(this).attr('data-note') || '';
+                 
+                 $('#note_file_id').val(fileId);
+                 $('#note_text').val(currentNote);
+                 $('#note_modal').modal('show');
+             });
+
+             $('#btn_save_note').click(function() {
+                 var fileId = $('#note_file_id').val();
+                 var note = $('#note_text').val();
+                 var url = '{{ route('voyager.doc-versioning.save-note', ['file' => '__file__']) }}'.replace('__file__', fileId);
+
+                 // Disable button
+                 var $btnSave = $(this);
+                 $btnSave.prop('disabled', true);
+
+                 $.post(url, { _token: '{{ csrf_token() }}', note: note })
+                  .done(function(res) {
+                      if(res.success) {
+                          toastr.success('Nota guardada');
+                          // Update button state (e.g., color)
+                          var $btn = $('.btn-note[data-file-id="' + fileId + '"]');
+                          $btn.attr('data-note', note);
+                          if (note && note.trim().length > 0) {
+                              $btn.removeClass('btn-default').addClass('btn-warning');
+                          } else {
+                              $btn.removeClass('btn-warning').addClass('btn-default');
+                          }
+                          $('#note_modal').modal('hide');
+                      }
+                  })
+                  .always(function(){
+                      $btnSave.prop('disabled', false);
+                  });
+             });
+
+             $('#btn_clear_note').click(function() {
+                 $('#note_text').val('');
+             });
 
             // Approval Status Restriction Logic
             @if(!$canEditStatus)
@@ -393,6 +655,16 @@
                              $customWrapper.find('input[type="file"]').val('');
                         }
                         $file.parent().fadeOut(300, function() { $(this).remove(); })
+                        
+                        // Update Document Matrix UI (Latest Version Row)
+                        console.log("Syncing delete to matrix for field: " + params.field);
+                        var $matrixSlot = $('#doc-versions-table tbody tr:first .doc-slot[data-type="' + params.field + '"]');
+                        if ($matrixSlot.length > 0) {
+                            $matrixSlot.find('a.btn-info').remove();          // Remove View Button
+                            $matrixSlot.find('input.approval-toggle').remove(); // Remove Checkbox
+                            $matrixSlot.find('.btn-note').remove();             // Remove Note Button
+                            // Keep upload button and hidden input
+                        }
                     } else {
                         toastr.error("Error removing file.");
                     }
@@ -404,7 +676,7 @@
 
             // Custom File Input Logic
             console.log("Searching for file inputs...");
-            var $fileInputs = $('input[type="file"]');
+            var $fileInputs = $('input[type="file"]').not('.hidden-doc-input');
             console.log("Found " + $fileInputs.length + " file inputs.");
             
             $fileInputs.each(function() {

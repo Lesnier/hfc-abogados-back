@@ -23,6 +23,11 @@ class Employee extends Model implements Auditable
         return $this->belongsTo(Supplier::class);
     }
 
+    public function docVersions()
+    {
+        return $this->hasMany(DocVersion::class)->orderBy('version_number', 'desc');
+    }
+
     
 
     public function scopeAccess($query)

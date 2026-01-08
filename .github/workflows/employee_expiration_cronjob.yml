@@ -1,0 +1,14 @@
+name: Ejecutar Tareas Laravel
+on:
+  schedule:
+    - cron: '0 * * * *' # Cada hora
+  workflow_dispatch:
+
+jobs:
+  hit-endpoint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Llamar Endpoint Protegido
+        run: |
+          # El token se concatena de forma segura en la URL
+          curl -X GET "tu-sitio.com/cron/check-expired-employees?token=${{ secrets.CRON_TOKEN }}"

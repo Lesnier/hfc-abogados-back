@@ -19,6 +19,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        \App\Models\Employee::observe(\App\Observers\EmployeeObserver::class);
+
         \Illuminate\Support\Facades\Validator::extend('cbu_ar', function ($attribute, $value, $parameters, $validator) {
             // Remove non-numeric characters
             $cbu = preg_replace('/\D/', '', $value);

@@ -25,6 +25,10 @@ Route::get('/', function () {
 Route::group(['prefix' => 'admin'], function () {
     Voyager::routes();
 
+    // Override Employees Update Route (Must be AFTER Voyager::routes())
+    Route::put('employees/{id}', [\App\Http\Controllers\Voyager\EmployeesController::class, 'update'])
+        ->name('voyager.employees.update');
+
 
     Route::group([
         'as'     => 'voyager.security.', // Prefijo para los nombres de ruta
@@ -52,6 +56,18 @@ Route::group(['prefix' => 'admin'], function () {
         Route::get('/', [\App\Http\Controllers\ReportController::class, 'index'])->name('index');
         Route::post('/generate', [\App\Http\Controllers\ReportController::class, 'generate'])->name('generate');
         Route::get('/filters', [\App\Http\Controllers\ReportController::class, 'getFilters'])->name('filters'); // New AJAX route
+    });
+
+    // Document Versioning Routes
+    Route::group([
+        'as'     => 'voyager.doc-versioning.',
+        'prefix' => 'doc-versioning',
+        'middleware' => ['web', 'admin.user'],
+    ], function () {
+        Route::post('/employees/{employee}/versions', [\App\Http\Controllers\DocVersioningController::class, 'createVersion'])->name('create-version');
+        Route::post('/versions/{version}/upload', [\App\Http\Controllers\DocVersioningController::class, 'uploadFile'])->name('upload-file');
+        Route::post('/files/{file}/approve', [\App\Http\Controllers\DocVersioningController::class, 'toggleApproval'])->name('toggle-approval');
+        Route::post('/files/{file}/note', [\App\Http\Controllers\DocVersioningController::class, 'saveNote'])->name('save-note');
     });
 
     // CSV Import Routes
@@ -187,3 +203,6 @@ Route::get('/test-email', function () {
         'platformName' => 'Legal Auditex'
     ]);
 });
+
+// Cron Job Routes
+Route::get('/cron/check-expired-employees', [\App\Http\Controllers\CronJobController::class, 'checkExpiredEmployees']);
