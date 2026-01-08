@@ -7,6 +7,7 @@ on:
 jobs:
   hit-endpoint:
     runs-on: ubuntu-latest
+    environment: production
     steps:
       - name: Llamada de checkeo de expiracion de empleado
         run: |
