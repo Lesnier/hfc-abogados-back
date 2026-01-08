@@ -12,4 +12,4 @@ jobs:
       - name: Llamada de checkeo de expiracion de empleado
         run: |
           # El token se concatena de forma segura en la URL
-          curl -X GET "http://legalauditex.ar/cron/check-expired-employees?token=${{ secrets.DEPLOY_TOKEN }}"
+          curl -X GET "https://legalauditex.ar/cron/check-expired-employees?token=${{ secrets.DEPLOY_TOKEN }}"
