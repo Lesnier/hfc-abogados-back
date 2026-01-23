@@ -134,73 +134,27 @@ class ReportController extends Controller
             'end_date'   => 'nullable|date',
         ]);
 
-        $startDate = $request->start_date ? Carbon::parse($request->start_date) : null;
-        $endDate   = $request->end_date   ? Carbon::parse($request->end_date) : null;
+        // Dispatch Job
+        \App\Jobs\GenerateLargePdfReport::dispatch(auth()->user(), $request->all());
 
-        // Build the query hierarchy
-        $companies = Company::access()
-            ->when($request->company_id, function($q) use ($request) {
-                return $q->where('companies.id', $request->company_id);
-            })
-            ->with(['suppliers' => function($q) use ($request, $startDate, $endDate) {
-                $q->access();
-                if ($request->supplier_id) {
-                    $q->where('suppliers.id', $request->supplier_id);
-                }
-                
-                // Eager load employees with filters
-                $q->with(['employees' => function($q) use ($request, $startDate, $endDate) {
-                    $q->access();
-                    if ($request->employee_id) {
-                        $q->where('employees.id', $request->employee_id);
-                    }
-                    if ($startDate) {
-                        $q->whereDate('employees.created_at', '>=', $startDate);
-                    }
-                    if ($endDate) {
-                        $q->whereDate('employees.created_at', '<=', $endDate);
-                    }
-                    
-                    // New Filters
-                    if ($request->filled('approval_status')) {
-                        $q->where('employees.approval_status', $request->approval_status);
-                    }
-                    
-                    if ($request->filled('enabled')) {
-                        $now = Carbon::now()->toDateString();
-                        if ($request->enabled == '1') {
-                            $q->whereDate('employees.validity_from', '<=', $now)
-                              ->whereDate('employees.validity_to', '>=', $now);
-                        } elseif ($request->enabled == '0') {
-                            $q->where(function($query) use ($now) {
-                                $query->whereDate('employees.validity_from', '>', $now)
-                                      ->orWhereDate('employees.validity_to', '<', $now);
-                            });
-                        }
-                    }
-
-                    if ($request->filled('cost_center')) {
-                        $q->where('employees.cost_center', 'like', '%' . $request->cost_center . '%');
-                    }
-
-                    if ($request->filled('responsible')) {
-                        $q->where('employees.responsible', 'like', '%' . $request->responsible . '%');
-                    }
-                }]);
-            }])
-            ->get();
-
-        // Calculate Global KPIs or prepare data structure
-        // We can do this in the view or here. 
-        // Let's pass the hierarchy to the view.
-
-        $pdf = Pdf::loadView('vendor.voyager.reports.pdf', [
-            'companies' => $companies,
-            'start_date' => $startDate ? $startDate->format('d/m/Y') : 'Inicio',
-            'end_date'   => $endDate   ? $endDate->format('d/m/Y')   : 'Actualidad',
-            'filters'    => $request->all()
+        return back()->with([
+            'message'    => 'El reporte se está generando en segundo plano. Recibirás un correo con el enlace de descarga.',
+            'alert-type' => 'info',
         ]);
+    }
 
-        return $pdf->download('reporte_'.date('Ymd_His').'.pdf');
+    public function download(Request $request)
+    {
+        if (! $request->hasValidSignature()) {
+            abort(401);
+        }
+        
+        $path = $request->query('path');
+        
+        if (!\Illuminate\Support\Facades\Storage::disk('public')->exists($path)) {
+            abort(404);
+        }
+
+        return \Illuminate\Support\Facades\Storage::disk('public')->download($path);
     }
 }

@@ -54,7 +54,8 @@ Route::group(['prefix' => 'admin'], function () {
     ], function () {
         Route::get('/', [\App\Http\Controllers\ReportController::class, 'index'])->name('index');
         Route::post('/generate', [\App\Http\Controllers\ReportController::class, 'generate'])->name('generate');
-        Route::get('/filters', [\App\Http\Controllers\ReportController::class, 'getFilters'])->name('filters'); // New AJAX route
+        Route::get('/filters', [\App\Http\Controllers\ReportController::class, 'getFilters'])->name('filters');
+        Route::get('/download', [\App\Http\Controllers\ReportController::class, 'download'])->name('download');
     });
 
     // Document Versioning Routes

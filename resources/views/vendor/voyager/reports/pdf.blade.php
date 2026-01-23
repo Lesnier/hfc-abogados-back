@@ -10,8 +10,8 @@
         h1 { margin: 5px 0; font-size: 24px; color: #162e47; }
         .meta { font-size: 12px; color: #777; }
         
-        .company-section { margin-top: 20px; page-break-inside: avoid; }
-        .company-title { background-color: #162e47; color: #fff; padding: 5px 10px; font-size: 16px; font-weight: bold; }
+        .company-section { margin-top: 20px; }
+        .company-title { background-color: #162e47; color: #fff; padding: 5px 10px; font-size: 16px; font-weight: bold; page-break-after: avoid; }
         
         .supplier-section { margin-top: 15px; margin-left: 15px; border-left: 3px solid #e3c06d; padding-left: 10px; }
         .supplier-title { font-size: 14px; font-weight: bold; color: #162e47; margin-bottom: 5px; }

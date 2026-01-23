@@ -17,7 +17,7 @@
             <div class="col-md-12">
                 <div class="panel panel-bordered">
                     <div class="panel-body">
-                        <form action="{{ route('voyager.reports.generate') }}" method="POST" target="_blank">
+                        <form action="{{ route('voyager.reports.generate') }}" method="POST">
                             @csrf
                             <div class="row">
                                 <div class="col-md-6 form-group">
@@ -182,5 +182,36 @@
                 $('<input>').attr({type: 'hidden', name: 'supplier_id', value: supplierSelect.val()}).appendTo('form');
             @endif
         });
+
+        // Handle Form Submit to show Loading
+        $('form').on('submit', function() {
+            // Disable button
+            // Disable button and visual change
+            const btn = $(this).find('button[type="submit"]');
+            btn.prop('disabled', true);
+            btn.css('background-color', '#95a5a6'); // Gray
+            btn.css('border-color', '#95a5a6');
+            btn.html('<i class="voyager-paper-plane"></i> Procesando...');
+
+            // Show Loading SweetAlert
+            swal({
+                title: "Generando Solicitud",
+                text: "Por favor espere mientras procesamos su petición...",
+                icon: "info",
+                buttons: false,
+                closeOnClickOutside: false,
+                closeOnEsc: false
+            });
+        });
+
+        // Show simplified SweetAlert if "message" session exists (overriding default toastr if preferred, or distinct)
+        @if(session('message'))
+            swal({
+                title: "Información",
+                text: "{{ session('message') }}",
+                icon: "{{ session('alert-type') == 'info' ? 'success' : session('alert-type') }}",
+                button: "Entendido",
+            });
+        @endif
     </script>
 @stop
