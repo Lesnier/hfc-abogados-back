@@ -21,14 +21,14 @@ class Role extends \TCG\Voyager\Models\Role
         }
 
         //Roles que usuario Administrador Tecnológico puede asignar
-        $techAdminRoleCanAssign = ['lawyer','company','supplier'];
+        $techAdminRoleCanAssign = ['lawyer','company','supplier','security'];
 
         if ($user->hasRole('tech_admin')) {
             return $query->whereIn('name', $techAdminRoleCanAssign);
         }
 
         //Roles que usuario Abogado puede asignar
-        $lawyerRoleCanAssign = ['lawyer','company','supplier'];
+        $lawyerRoleCanAssign = ['lawyer','company','supplier','security'];
 
         if ($user->hasRole('lawyer')) {
             return $query->whereIn('name', $lawyerRoleCanAssign);

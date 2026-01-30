@@ -58,7 +58,7 @@ class User extends \TCG\Voyager\Models\User implements Auditable
 
     public function scopeAccess($query)
     {
-        $roleCanAssign = ['lawyer' => 3, 'company' => 4, 'supplier' => 5, 'tech_admin' => 6];
+        $roleCanAssign = ['lawyer' => 3, 'company' => 4, 'supplier' => 5, 'tech_admin' => 6, 'security' => 7];
 
         $user = auth()->user();
         if ($user->hasRole('admin')) {
