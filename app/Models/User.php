@@ -79,7 +79,7 @@ class User extends \TCG\Voyager\Models\User implements Auditable
         if ($user->hasRole('lawyer')) {
             return $query
                 ->where('law_firm_id', $user->law_firm_id)
-                ->whereIn('role_id', [$roleCanAssign['lawyer'], $roleCanAssign['company'], $roleCanAssign['supplier']]);
+                ->whereIn('role_id', [$roleCanAssign['lawyer'], $roleCanAssign['company'], $roleCanAssign['supplier'],$roleCanAssign['security']]);
         }
 
         //Roles que usuario Empresa puede asignar
