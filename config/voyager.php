@@ -146,13 +146,12 @@ return [
         'widgets' => [
             // 'App\\Widgets\\UserDimmer',
             'App\\Widgets\\CompanyDimmer',
-            'App\\Widgets\\EmployeesDimmer',
             'App\\Widgets\\SuppliersDimmer',
+            'App\\Widgets\\EmployeesDimmer',            
             'App\\Widgets\\StatusEmployerPieChart',
-             'App\\Widgets\\ConditionEmployerDonutChart',            
+            'App\\Widgets\\ConditionEmployerDonutChart',        
             'App\\Widgets\\EmployeeOnboardingLineChart',
             'App\\Widgets\\EmployersByCompanyBarChart',
-           
         ],
 
     ],
