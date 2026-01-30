@@ -32,6 +32,7 @@
 </head>
 <body>
 
+    @if(!isset($show_main_header) || $show_main_header)
     <div class="header">
         <h1>Reporte de Gestión</h1>
         <div class="meta">
@@ -52,6 +53,7 @@
             @endif
         </div>
     </div>
+    @endif
 
     @if($companies->isEmpty())
         <div class="text-center" style="margin-top: 50px;">
@@ -62,33 +64,48 @@
     @foreach($companies as $company)
         @php
             // Calculate Company Level KPIs (based on filtered relations)
-            $totalSuppliers = $company->suppliers->count();
-            // Count total employees across all these suppliers
-            $totalEmployees = $company->suppliers->sum(function($s) { return $s->employees->count(); });
+            // Use global stats passed from Job if available, otherwise fall back to chunk count (should not happen in new logic)
+            $totalSuppliers = $company->global_supplier_count ?? $company->suppliers->count();
+            $totalEmployees = $company->global_employee_count ?? $company->suppliers->sum(function($s) { return $s->employees->count(); });
+            $totalApproved = $company->global_approved_count ?? $company->suppliers->sum(function($s) { return $s->employees->where('approval_status', 'Aprobado')->count(); });
+            
+            $showHeader = $company->show_header ?? true;
         @endphp
 
         <!-- Only show company if it has relevant data (suppliers/employees) -->
         @if($totalSuppliers > 0 || $totalEmployees > 0)
             <div class="company-section">
+                @if($showHeader)
                 <div class="company-title">
                     {{ $company->name }} <span style="font-size: 12px; font-weight: normal;">(ID: {{ $company->id }})</span>
                 </div>
+                <!-- Only show KPIs if header is shown? Or typically KPIs go with header. Yes. -->
                 <div class="kpi-container" style="margin-top: 5px; padding: 5px;">
                     <strong>Métricas:</strong>
                     Proveedores: {{ $totalSuppliers }} | 
-                    Empleados: {{ $totalEmployees }}
+                    Empleados: {{ $totalEmployees }} |
+                    Aprobados: {{ $totalApproved }}
                 </div>
+                @endif
 
                 @foreach($company->suppliers as $supplier)
                     @if($supplier->employees->isNotEmpty())
+                        @php
+                             $supplierShowHeader = $supplier->show_header ?? true;
+                             $supplierTotalEmployees = $supplier->global_employee_count ?? $supplier->employees->count();
+                             $supplierTotalApproved = $supplier->global_approved_count ?? $supplier->employees->where('approval_status', 'Aprobado')->count();
+                        @endphp
+
                         <div class="supplier-section">
+                            @if($supplierShowHeader)
                             <div class="supplier-title">
                                 Prov: {{ $supplier->name }} <span style="font-weight: normal; font-size: 12px;"> (ID: {{ $supplier->id }})</span> 
                             </div>
                             <div class="kpi-container">
-                                Empleados: {{ $supplier->employees->count() }} | 
-                                Aprobados: {{ $supplier->employees->where('approval_status', 'Aprobado')->count() }}
+                                Empleados: {{ $supplierTotalEmployees }} | 
+                                Aprobados: {{ $supplierTotalApproved }}
                             </div>
+                            @endif
 
                             <table>
                                 <thead>
@@ -103,6 +120,11 @@
                                 </thead>
                                 <tbody>
                                     @foreach($supplier->employees as $employee)
+                                        @if(isset($enable_map_script) && $enable_map_script)
+                                            <script type="text/php">
+                                                $GLOBALS['pdf_map'][$pdf->get_page_number()][] = {{ $employee->id }};
+                                            </script>
+                                        @endif
                                         <tr>
                                             <td>{{ $employee->name }}</td>
                                             <td>{{ $employee->identification }}</td>

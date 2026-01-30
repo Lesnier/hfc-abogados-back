@@ -34,7 +34,7 @@ class EmployeeController extends Controller
                     'dni' => $employee->identification,
                     'name' => $employee->name,
                     'lastName' => 'null', // Hardcoded
-                    'position' => 'null', // Hardcoded
+                    'condition' => $employee->condition,
                     'company' => $companyName,
                     'photoUrl' => 'null', // Hardcoded
                     'status' => $employee->approval_status,
@@ -52,7 +52,7 @@ class EmployeeController extends Controller
 
             return response()->json($responseData);
         } else {
-            return response()->json(['success' => false, 'message' => 'Empleado no encontrado'], 404);
+            return response()->json(['success' => false, 'message' => 'Empleado no encontrado'], 200);
         }
     }
 }

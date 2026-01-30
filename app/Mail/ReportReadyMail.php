@@ -11,16 +11,19 @@ class ReportReadyMail extends Mailable
     use Queueable, SerializesModels;
 
     public $url;
+    public $excelUrl;
 
     /**
      * Create a new message instance.
      *
      * @param string $url
+     * @param string|null $excelUrl
      * @return void
      */
-    public function __construct($url)
+    public function __construct($url, $excelUrl = null)
     {
         $this->url = $url;
+        $this->excelUrl = $excelUrl;
     }
 
     /**

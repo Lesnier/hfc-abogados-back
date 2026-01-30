@@ -1,0 +1,11 @@
+[program:hfc-abogados-worker]
+process_name=%(program_name)s_%(process_num)02d
+# CRITICAL: Memory limit set to 4096MB (4GB) and timeout to 3600s (1 hour)
+command=php /path/to/your/project/artisan queue:work --sleep=3 --tries=3 --max-time=3600 --memory=4096 --timeout=3600
+autostart=true
+autorestart=true
+user=www-data
+numprocs=1
+redirect_stderr=true
+stdout_logfile=/path/to/your/project/storage/logs/worker.log
+stopwaitsecs=3600
