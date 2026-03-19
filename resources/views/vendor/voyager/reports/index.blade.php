@@ -95,8 +95,65 @@
                                 </button>
                             </div>
                         </form>
+
+                        @if(!empty($historicalReports))
+                            <hr>
+                            <h4><i class="voyager-list"></i> Últimos Reportes Generados</h4>
+                            <div class="table-responsive">
+                                <table class="table table-hover table-bordered">
+                                    <thead>
+                                        <tr>
+                                            <th>Fecha</th>
+                                            <th>PDF</th>
+                                            <th>Excel</th>
+                                            <th>Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach($historicalReports as $report)
+                                            <tr>
+                                                <td>Generado {{ $report['timeForHumans'] }}</td>
+                                                <td>
+                                                    @if($report['pdf_url'])
+                                                        <a href="{{ $report['pdf_url'] }}" class="btn btn-sm" target="_blank" style="margin: 0; background-color: white; color: #333; border: 1px solid #ccc;">
+                                                            <i class="voyager-documentation" style="color: #e74c3c;"></i> Ver PDF
+                                                        </a>
+                                                    @else
+                                                        <span class="text-muted">No disponible</span>
+                                                    @endif
+                                                </td>
+                                                <td>
+                                                    @if($report['excel_url'])
+                                                        <a href="{{ $report['excel_url'] }}" class="btn btn-sm" target="_blank" style="margin: 0; background-color: white; color: #333; border: 1px solid #ccc;">
+                                                            <i class="voyager-documentation" style="color: #19914bff;"></i> Ver Excel
+                                                        </a>
+                                                    @else
+                                                        <span class="text-muted">No disponible</span>
+                                                    @endif
+                                                </td>
+                                                <td>
+                                                    <form action="{{ route('voyager.reports.delete-history', $report['timestamp']) }}" method="POST" class="delete-history-form" style="display:inline-block;">
+                                                        {{ method_field('DELETE') }}
+                                                        {{ csrf_field() }}
+                                                        <button type="submit" class="btn btn-sm btn-danger pull-right delete-confirm" style="margin: 0;" title="Borrar del Historial">
+                                                            <i class="voyager-trash"></i>
+                                                        </button>
+                                                    </form>
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        @else
+                            <hr>
+                            <div class="alert alert-info" style="margin-bottom: 0;">
+                                <i class="voyager-info-circled"></i> No hay reportes generados recientemente.
+                            </div>
+                        @endif
                     </div>
                 </div>
+
             </div>
         </div>
     </div>
@@ -209,9 +266,41 @@
             swal({
                 title: "Información",
                 text: "{{ session('message') }}",
-                icon: "{{ session('alert-type') == 'info' ? 'success' : session('alert-type') }}",
+                icon: "{{ session('alert-type') == 'info' ? 'success' : (session('alert-type') == 'error' ? 'error' : 'success') }}",
                 button: "Entendido",
             });
         @endif
+
+        // Delete confirmation
+        $('.delete-history-form').on('submit', function(e) {
+            e.preventDefault();
+            var form = this;
+            swal({
+                title: '¿Estás seguro?',
+                text: "Esto eliminará permanentemente la copia guardada del reporte en ambas versiones (PDF y Excel).",
+                icon: 'warning',
+                buttons: {
+                    cancel: {
+                        text: "Cancelar",
+                        value: null,
+                        visible: true,
+                        className: "",
+                        closeModal: true,
+                    },
+                    confirm: {
+                        text: "Sí, ¡eliminar!",
+                        value: true,
+                        visible: true,
+                        className: "bg-danger",
+                        closeModal: true
+                    }
+                },
+                dangerMode: true,
+            }).then((willDelete) => {
+                if (willDelete) {
+                    form.submit();
+                }
+            });
+        });
     </script>
 @stop

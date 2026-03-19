@@ -23,6 +23,9 @@
         @endcan
         @can('delete', app($dataType->model_name))
             @include('voyager::partials.bulk-delete')
+            <button type="button" class="btn btn-primary" id="bulk_edit_btn">
+                <i class="voyager-edit"></i> <span>Bulk Edit</span>
+            </button>
         @endcan
         @can('edit', app($dataType->model_name))
             @if(!empty($dataType->order_column) && !empty($dataType->order_display_column))
@@ -363,12 +366,152 @@
             </div><!-- /.modal-content -->
         </div><!-- /.modal-dialog -->
     </div><!-- /.modal -->
+
+    {{-- Bulk Edit Modal --}}
+    <div class="modal fade" tabindex="-1" id="bulk_edit_modal" role="dialog">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title"><i class="voyager-edit"></i> Edición Masiva - {{ $dataType->getTranslatedAttribute('display_name_plural') }}</h4>
+                </div>
+                <form action="{{ route('voyager.employees.bulk-update') }}" method="POST" enctype="multipart/form-data" id="bulk_edit_form">
+                    {{ csrf_field() }}
+                    <input type="hidden" name="ids" id="bulk_edit_ids">
+                    <div class="modal-body">
+                        <div class="alert alert-info">
+                            <i class="voyager-info-circled"></i> Los campos que se dejen vacíos no serán modificados en los registros seleccionados.
+                        </div>
+                        <div class="row">
+                            {{-- Proveedor --}}
+                            <div class="form-group col-md-6">
+                                <label for="supplier_id">Proveedor</label>
+                                <select name="supplier_id" class="form-control select2">
+                                    <option value="">-- No Cambiar --</option>
+                                    @foreach($suppliers as $supplier)
+                                        <option value="{{ $supplier->id }}">{{ $supplier->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            {{-- Condicion --}}
+                            <div class="form-group col-md-6">
+                                <label for="condition">Condición</label>
+                                <input type="text" name="condition" class="form-control" placeholder="Ej: Pasante, Efectivo...">
+                            </div>
+                            {{-- Valido Desde --}}
+                            <div class="form-group col-md-6">
+                                <label for="validity_from">Valido Desde</label>
+                                <input type="date" name="validity_from" class="form-control">
+                            </div>
+                            {{-- Valido Hasta --}}
+                            <div class="form-group col-md-6">
+                                <label for="validity_to">Valido Hasta</label>
+                                <input type="date" name="validity_to" class="form-control">
+                            </div>
+                            {{-- Ingresos --}}
+                            <div class="form-group col-md-6">
+                                <label for="suitable_income">Ingresos</label>
+                                <input type="text" name="suitable_income" class="form-control">
+                            </div>
+                            {{-- Responsable --}}
+                            <div class="form-group col-md-6">
+                                <label for="responsible">Responsable</label>
+                                <input type="text" name="responsible" class="form-control">
+                            </div>
+                            {{-- Centro de Costo --}}
+                            <div class="form-group col-md-6">
+                                <label for="cost_center">Centro de Costo</label>
+                                <input type="text" name="cost_center" class="form-control">
+                            </div>
+                            {{-- Estatus de Aprobacion --}}
+                            <div class="form-group col-md-6">
+                                <label for="approval_status">Estatus de Aprobación</label>
+                                <select name="approval_status" class="form-control">
+                                    <option value="">-- No Cambiar --</option>
+                                    <option value="Revisión">Revisión</option>
+                                    <option value="Aprobado">Aprobado</option>
+                                    <option value="Baja">Baja</option>
+                                </select>
+                            </div>
+                            {{-- Recibo de Salario (File) --}}
+                            <div class="form-group col-md-12">
+                                <label for="salary_receipt">Recibo de Salario</label>
+                                <div class="custom-file-input-wrapper">
+                                    <input type="file" name="salary_receipt" id="bulk_salary_receipt">
+                                    <button type="button" class="btn-file-select" id="bulk_file_btn">
+                                        <i class="voyager-upload"></i> Seleccionar Archivo
+                                    </button>
+                                    <div class="file-preview-info" id="bulk_file_preview" style="display:none;">
+                                        <i class="voyager-file-text" style="font-size: 16px; color: #e74c3c;margin-top: 4px;"></i>
+                                        <span class="file-name" style="width: 100%;"></span>
+                                        <i class="voyager-x remove-file-btn" id="bulk_remove_file" title="Quitar"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-default" data-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Guardar Cambios Masivos</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 @stop
 
 @section('css')
 @if(!$dataType->server_side && config('dashboard.data_tables.responsive'))
     <link rel="stylesheet" href="{{ voyager_asset('lib/css/responsive.dataTables.min.css') }}">
 @endif
+<style>
+    .custom-file-input-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 1px;
+    }
+    .custom-file-input-wrapper input[type="file"] {
+        display: none !important;
+    }
+    .btn-file-select {
+        background-color: #e74c3c; /* Red color */
+        color: white;
+        border: none;
+        padding: 6px 15px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: bold;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        transition: background 0.3s;
+        width: 100%;
+    }
+    .btn-file-select:hover {
+        background-color: #c0392b;
+    }
+    .file-preview-info {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: #f8f9fa;
+        padding: 1px 10px;
+        border-radius: 4px;
+        border: 1px solid #ddd;
+        width: 100%;
+        height: 34px;
+    }
+    .remove-file-btn {
+        color: #999;
+        cursor: pointer;
+        font-size: 16px;
+        line-height: 1;
+    }
+    .remove-file-btn:hover {
+        color: #d9534f;
+    }
+</style>
 @stop
 
 @section('javascript')
@@ -474,12 +617,63 @@
         @endif
         $('input[name="row_id"]').on('change', function () {
             var ids = [];
-            $('input[name="row_id"]').each(function() {
-                if ($(this).is(':checked')) {
-                    ids.push($(this).val());
-                }
+            $('input[name="row_id"]:checked').each(function() {
+                ids.push($(this).val());
             });
             $('.selected_ids').val(ids);
+        });
+
+        // Bulk Edit Logic
+        $('#bulk_edit_btn').on('click', function() {
+            var ids = [];
+            $('input[name="row_id"]:checked').each(function() {
+                ids.push($(this).val());
+            });
+
+            if (ids.length === 0) {
+                toastr.warning('Por favor, selecciona al menos un empleado.');
+                return;
+            }
+
+            $('#bulk_edit_ids').val(ids.join(','));
+            $('#bulk_edit_modal').modal('show');
+        });
+
+        // Custom File Input for Bulk Modal
+        $('#bulk_file_btn').on('click', function() {
+            $('#bulk_salary_receipt').trigger('click');
+        });
+
+        $('#bulk_salary_receipt').on('change', function() {
+            var file = this.files[0];
+            if (file) {
+                var fileName = file.name;
+                if (fileName.length > 30) fileName = fileName.substring(0, 30) + '...';
+                $('#bulk_file_preview .file-name').text(fileName).attr('title', file.name);
+                $('#bulk_file_preview').css('display', 'flex');
+                $('#bulk_file_btn').hide();
+            }
+        });
+
+        $('#bulk_remove_file').on('click', function() {
+            $('#bulk_salary_receipt').val('');
+            $('#bulk_file_preview').hide();
+            $('#bulk_file_btn').show();
+        });
+
+        // Confirmation Prompt
+        $('#bulk_edit_form').on('submit', function(e) {
+            var idsCount = $('#bulk_edit_ids').val().split(',').length;
+            if (!confirm('¿Estás seguro de que deseas aplicar estos cambios masivamente a ' + idsCount + ' empleados? Esta acción no se puede deshacer fácilmente.')) {
+                e.preventDefault();
+            }
+        });
+
+        // Initialize select2 inside modal
+        $('#bulk_edit_modal').on('shown.bs.modal', function () {
+            $(this).find('.select2').select2({
+                dropdownParent: $('#bulk_edit_modal')
+            });
         });
     </script>
 @stop

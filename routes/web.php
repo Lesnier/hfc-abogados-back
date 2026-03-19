@@ -26,7 +26,8 @@ Route::group(['prefix' => 'admin'], function () {
     Voyager::routes();
 
     // Override Employees Update Route (Must be AFTER Voyager::routes())
-    Route::put('employees/{id}', [\App\Http\Controllers\Voyager\EmployeesController::class, 'update']);
+    Route::put('employees/{id}', [\App\Http\Controllers\Voyager\EmployeesController::class, 'update'])->name('voyager.employees.update');
+    Route::post('employees/bulk-update', [\App\Http\Controllers\Voyager\EmployeesController::class, 'bulkUpdate'])->name('voyager.employees.bulk-update');
 
 
     Route::group([
@@ -56,6 +57,7 @@ Route::group(['prefix' => 'admin'], function () {
         Route::post('/generate', [\App\Http\Controllers\ReportController::class, 'generate'])->name('generate');
         Route::get('/filters', [\App\Http\Controllers\ReportController::class, 'getFilters'])->name('filters');
         Route::get('/download', [\App\Http\Controllers\ReportController::class, 'download'])->name('download');
+        Route::delete('/history/{timestamp}', [\App\Http\Controllers\ReportController::class, 'deleteHistory'])->name('delete-history');
     });
 
     // Document Versioning Routes

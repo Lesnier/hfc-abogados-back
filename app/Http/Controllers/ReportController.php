@@ -70,8 +70,57 @@ class ReportController extends Controller
                 $employees = Employee::where('supplier_id', $supplierProfile->id)->select('id', 'name', 'identification')->orderBy('name')->get();
             }
         }
+        // 4. Load Historical Reports from Storage
+        $historicalReports = [];
+        $files = \Illuminate\Support\Facades\Storage::disk('public')->files('reports');
+        $reportsMap = [];
 
-        return view('vendor.voyager.reports.index', compact('companies', 'suppliers', 'employees'));
+        foreach ($files as $file) {
+            if (preg_match('/reporte_gestion_(\d{8}_\d{6})\.(pdf|xlsx)/', $file, $matches)) {
+                $timestamp = $matches[1];
+                $ext = $matches[2];
+                
+                if (!isset($reportsMap[$timestamp])) {
+                    try {
+                        $date = Carbon::createFromFormat('Ymd_His', $timestamp);
+                        $timeForHumans = $date->locale('es')->diffForHumans();
+                        $sortTime = $date->timestamp;
+                    } catch (\Exception $e) {
+                        $timeForHumans = 'Desconocido';
+                        $sortTime = 0;
+                    }
+
+                    $reportsMap[$timestamp] = [
+                        'timestamp' => $timestamp,
+                        'timeForHumans' => $timeForHumans,
+                        'sortTime' => $sortTime,
+                        'pdf_url' => null,
+                        'excel_url' => null,
+                    ];
+                }
+
+                $url = \Illuminate\Support\Facades\URL::temporarySignedRoute(
+                    'voyager.reports.download',
+                    now()->addHours(24),
+                    ['path' => $file]
+                );
+
+                if ($ext == 'pdf') {
+                    $reportsMap[$timestamp]['pdf_url'] = $url;
+                } else {
+                    $reportsMap[$timestamp]['excel_url'] = $url;
+                }
+            }
+        }
+
+        // Sort descending
+        usort($reportsMap, function($a, $b) {
+            return $b['sortTime'] <=> $a['sortTime'];
+        });
+
+        $historicalReports = $reportsMap;
+
+        return view('vendor.voyager.reports.index', compact('companies', 'suppliers', 'employees', 'historicalReports'));
     }
 
     public function getFilters(Request $request)
@@ -156,5 +205,43 @@ class ReportController extends Controller
         }
 
         return \Illuminate\Support\Facades\Storage::disk('public')->download($path);
+    }
+
+    public function deleteHistory($timestamp)
+    {
+        // Add basic validation for timestamp format Ymd_His
+        if (!preg_match('/^\d{8}_\d{6}$/', $timestamp)) {
+            return back()->with([
+                'message'    => 'Formato de archivo inválido.',
+                'alert-type' => 'error',
+            ]);
+        }
+
+        $pdfFile = "reports/reporte_gestion_{$timestamp}.pdf";
+        $excelFile = "reports/reporte_gestion_{$timestamp}.xlsx";
+
+        $deletedAny = false;
+
+        if (\Illuminate\Support\Facades\Storage::disk('public')->exists($pdfFile)) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($pdfFile);
+            $deletedAny = true;
+        }
+
+        if (\Illuminate\Support\Facades\Storage::disk('public')->exists($excelFile)) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($excelFile);
+            $deletedAny = true;
+        }
+
+        if ($deletedAny) {
+            return back()->with([
+                'message'    => 'El reporte fue eliminado correctamente de tu historial.',
+                'alert-type' => 'success',
+            ]);
+        } else {
+            return back()->with([
+                'message'    => 'No se encontraron los archivos especificados.',
+                'alert-type' => 'info',
+            ]);
+        }
     }
 }
