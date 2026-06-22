@@ -10,6 +10,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use TCG\Voyager\Facades\Voyager;
+use TCG\Voyager\Events\BreadDataAdded;
+use TCG\Voyager\Events\BreadDataUpdated;
 
 class EmployeesController extends VoyagerBaseController
 {
@@ -245,12 +247,192 @@ class EmployeesController extends VoyagerBaseController
         ]);
     }
 
+    public function create(Request $request)
+    {
+        $slug = $this->getSlug($request);
+
+        $dataType = Voyager::model('DataType')->where('slug', '=', $slug)->first();
+
+        // Check permission
+        $this->authorize('add', app($dataType->model_name));
+
+        $dataTypeContent = (strlen($dataType->model_name) != 0)
+                            ? new $dataType->model_name()
+                            : false;
+
+        foreach ($dataType->addRows as $key => $row) {
+            $dataType->addRows[$key]['col_width'] = $row->details->width ?? 100;
+        }
+
+        // Custom filtering for Supplier Role
+        if (auth()->user()->hasRole('supplier')) {
+            $this->filterSupplierRows($dataType, 'add');
+        }
+
+        // If a column has a relationship associated with it, we do not want to show that field
+        $this->removeRelationshipField($dataType, 'add');
+
+        // Check if BREAD is Translatable
+        $isModelTranslatable = is_bread_translatable($dataTypeContent);
+
+        // Eagerload Relations
+        $this->eagerLoadRelations($dataTypeContent, $dataType, 'add', $isModelTranslatable);
+
+        $view = 'voyager::bread.edit-add';
+
+        if (view()->exists("voyager::$slug.edit-add")) {
+            $view = "voyager::$slug.edit-add";
+        }
+
+        return Voyager::view($view, compact('dataType', 'dataTypeContent', 'isModelTranslatable'));
+    }
+
+    public function store(Request $request)
+    {
+        $slug = $this->getSlug($request);
+
+        $dataType = Voyager::model('DataType')->where('slug', '=', $slug)->first();
+
+        // Check permission
+        $this->authorize('add', app($dataType->model_name));
+
+        $employee = new $dataType->model_name();
+
+        // Custom filtering for Supplier Role
+        if (auth()->user()->hasRole('supplier')) {
+            $this->filterSupplierRows($dataType, 'add');
+            
+            // Auto-assign supplier_id from the supplier user's profile
+            $supplier = \App\Models\Supplier::access()->first();
+            if ($supplier) {
+                $employee->supplier_id = $supplier->id;
+            } else {
+                abort(403, 'No tiene ningún proveedor asociado.');
+            }
+        }
+
+        // Validate fields with ajax
+        $val = $this->validateBread($request->all(), $dataType->addRows)->validate();
+        $data = $this->insertUpdateData($request, $slug, $dataType->addRows, $employee);
+
+        event(new BreadDataAdded($dataType, $data));
+
+        if (!$request->has('_tagging')) {
+            if (auth()->user()->can('browse', $data)) {
+                $redirect = redirect()->route("voyager.{$dataType->slug}.index");
+            } else {
+                $redirect = redirect()->back();
+            }
+
+            return $redirect->with([
+                'message'    => __('voyager::generic.successfully_added_new')." {$dataType->getTranslatedAttribute('display_name_singular')}",
+                'alert-type' => 'success',
+            ]);
+        } else {
+            return response()->json(['success' => true, 'data' => $data]);
+        }
+    }
+
+    public function edit(Request $request, $id)
+    {
+        $slug = $this->getSlug($request);
+
+        $dataType = Voyager::model('DataType')->where('slug', '=', $slug)->first();
+
+        if (strlen($dataType->model_name) != 0) {
+            $model = app($dataType->model_name);
+            $query = $model->query();
+
+            // Use withTrashed() if model uses SoftDeletes and if toggle is selected
+            if ($model && in_array(SoftDeletes::class, class_uses_recursive($model))) {
+                $query = $query->withTrashed();
+            }
+            if ($dataType->scope && $dataType->scope != '' && method_exists($model, 'scope'.ucfirst($dataType->scope))) {
+                $query = $query->{$dataType->scope}();
+            }
+            $dataTypeContent = call_user_func([$query, 'findOrFail'], $id);
+        } else {
+            // If Model doest exist, get data from table name
+            $dataTypeContent = DB::table($dataType->name)->where('id', $id)->first();
+        }
+
+        foreach ($dataType->editRows as $key => $row) {
+            $dataType->editRows[$key]['col_width'] = isset($row->details->width) ? $row->details->width : 100;
+        }
+
+        // Custom filtering for Supplier Role
+        if (auth()->user()->hasRole('supplier')) {
+            $this->filterSupplierRows($dataType, 'edit');
+        }
+
+        // If a column has a relationship associated with it, we do not want to show that field
+        $this->removeRelationshipField($dataType, 'edit');
+
+        // Check permission
+        $this->authorize('edit', $dataTypeContent);
+
+        // Check if BREAD is Translatable
+        $isModelTranslatable = is_bread_translatable($dataTypeContent);
+
+        // Eagerload Relations
+        $this->eagerLoadRelations($dataTypeContent, $dataType, 'edit', $isModelTranslatable);
+
+        $view = 'voyager::bread.edit-add';
+
+        if (view()->exists("voyager::$slug.edit-add")) {
+            $view = "voyager::$slug.edit-add";
+        }
+
+        return Voyager::view($view, compact('dataType', 'dataTypeContent', 'isModelTranslatable'));
+    }
+
     public function update(Request $request, $id)
     {
         Log::emergency("CUSTOM EMPLOYEES CONTROLLER HIT for ID: " . $id);
-        
-        // Call Parent Update Logic
-        $response = parent::update($request, $id);
+
+        $slug = $this->getSlug($request);
+
+        $dataType = Voyager::model('DataType')->where('slug', '=', $slug)->first();
+
+        // Compatibility with Model binding.
+        $id = $id instanceof \Illuminate\Database\Eloquent\Model ? $id->{$id->getKeyName()} : $id;
+
+        $model = app($dataType->model_name);
+        $query = $model->query();
+        if ($dataType->scope && $dataType->scope != '' && method_exists($model, 'scope'.ucfirst($dataType->scope))) {
+            $query = $query->{$dataType->scope}();
+        }
+        if ($model && in_array(SoftDeletes::class, class_uses_recursive($model))) {
+            $query = $query->withTrashed();
+        }
+
+        $data = $query->findOrFail($id);
+
+        // Check permission
+        $this->authorize('edit', $data);
+
+        // Custom filtering for Supplier Role
+        if (auth()->user()->hasRole('supplier')) {
+            $this->filterSupplierRows($dataType, 'edit');
+            $this->validateSupplierRelationship($request);
+        }
+
+        // Validate fields with ajax
+        $val = $this->validateBread($request->all(), $dataType->editRows, $dataType->name, $id)->validate();
+
+        // Get fields with images to remove before updating and make a copy of $data
+        $to_remove = $dataType->editRows->where('type', 'image')
+            ->filter(function ($item, $key) use ($request) {
+                return $request->hasFile($item->field);
+            });
+        $original_data = clone($data);
+
+        $this->insertUpdateData($request, $slug, $dataType->editRows, $data);
+
+        // Delete Images
+        $this->deleteBreadImages($original_data, $to_remove);
+
+        event(new BreadDataUpdated($dataType, $data));
 
         // Custom Notification Logic (Always runs on submit)
         if ($request->has('notify_supplier') && $request->input('notify_supplier') == '1') {
@@ -267,22 +449,12 @@ class EmployeesController extends VoyagerBaseController
                      if ($user && $user->email) {
                         $latestVersion = $employee->docVersions()->orderBy('version_number', 'desc')->first();
                         
-                        // If no version, try to use current files (fallback to V1 logic if needed, but observer does creating)
-                        // Actually, if user just clicked save without version logic, maybe no version exists yet?
-                        // Assuming version logic exists or falls back to 'current state' if we wanted.
-                        // For now, consistent with Observer: needs version.
-                        
                         if ($latestVersion) {
                             try {
                                 \Illuminate\Support\Facades\Mail::to($user->email)->send(
                                     new \App\Mail\DocumentStatusMail($employee, $latestVersion, $latestVersion->files)
                                 );
                                 Log::info("EmployeesController: Email sent to: " . $user->email);
-                                
-                                // Optional: Flash message
-                                // Session::flash('message', 'Correo de notificación enviado.'); 
-                                // But response is already redirect.
-                                
                             } catch (\Exception $e) {
                                 Log::error("EmployeesController: Email error: " . $e->getMessage());
                             }
@@ -298,6 +470,53 @@ class EmployeesController extends VoyagerBaseController
             }
         }
 
-        return $response;
+        if (auth()->user()->can('browse', app($dataType->model_name))) {
+            $redirect = redirect()->route("voyager.{$dataType->slug}.index");
+        } else {
+            $redirect = redirect()->back();
+        }
+
+        return $redirect->with([
+            'message'    => __('voyager::generic.successfully_updated')." {$dataType->getTranslatedAttribute('display_name_singular')}",
+            'alert-type' => 'success',
+        ]);
+    }
+
+    protected function filterSupplierRows($dataType, $type = 'edit')
+    {
+        $allowedFields = [
+            'name',
+            'identification',
+            'condition',
+            'cost_center',
+            // Files (No supplier_id/employee_belongsto_supplier_relationship included)
+            'form_931',
+            'policy',
+            'life_insurance',
+            'salary_receipt',
+            'repetition',
+            'indemnity',
+            'proof_discharge',
+            'arca_termination_form',
+        ];
+
+        $rowsKey = $type . 'Rows';
+        $dataType->$rowsKey = $dataType->$rowsKey->filter(function ($row) use ($allowedFields) {
+            return in_array($row->field, $allowedFields);
+        });
+    }
+
+    protected function validateSupplierRelationship(Request $request)
+    {
+        if (auth()->user()->hasRole('supplier')) {
+            $supplierId = $request->input('supplier_id');
+            if ($supplierId) {
+                $userSuppliers = \App\Models\Supplier::access()->pluck('id')->toArray();
+                if (!in_array($supplierId, $userSuppliers)) {
+                    abort(403, 'No autorizado para asignar este proveedor.');
+                }
+            }
+        }
     }
 }
+
