@@ -28,13 +28,95 @@ class CsvImportController extends Controller
         $model = new $modelClass();
         $fillable = $model->getFillable();
 
-        // Create CSV content
-        $headers = implode(';', $fillable);
-        
+        $exampleRow = array_map(function ($field) use ($slug) {
+            return $this->buildExampleValue($slug, $field);
+        }, $fillable);
+
+        $headerLine = implode(';', $fillable);
+        $exampleLine = implode(';', $exampleRow);
+
         // Return download response
-        return response()->streamDownload(function () use ($headers) {
-            echo $headers;
+        return response()->streamDownload(function () use ($headerLine, $exampleLine) {
+            // BOM so Excel detects UTF-8 (tildes, ñ, etc.) correctly
+            echo "\xEF\xBB\xBF";
+            echo $headerLine . "\r\n";
+            echo $exampleLine . "\r\n";
         }, $slug . '_template.csv');
+    }
+
+    /**
+     * Builds a helpful example value for a given field: the allowed options
+     * for select-type fields (taken from the same rules used to validate the
+     * import, so the example always matches what will actually be accepted),
+     * or a representative sample value otherwise.
+     */
+    private function buildExampleValue($slug, $field)
+    {
+        $rules = $this->getValidationRules($slug);
+
+        if (isset($rules[$field])) {
+            foreach (explode('|', $rules[$field]) as $rule) {
+                if (Str::startsWith($rule, 'in:')) {
+                    $options = explode(',', Str::after($rule, 'in:'));
+                    return implode(' / ', $options);
+                }
+            }
+        }
+
+        // Selects not covered by import validation rules: pull options from the BREAD config.
+        $dataType = \TCG\Voyager\Models\DataType::where('slug', $slug)->first();
+        $dataRow = $dataType ? $dataType->rows->firstWhere('field', $field) : null;
+        if ($dataRow && in_array($dataRow->type, ['select_dropdown', 'radio_btn']) && property_exists($dataRow->details, 'options')) {
+            return implode(' / ', array_keys((array) $dataRow->details->options));
+        }
+
+        $examples = [
+            'employees' => [
+                'identification' => '20-12345678-6',
+                'name' => 'Juan Pérez',
+                'cuil' => '20-12345678-6',
+                'suitable_income' => '150000',
+                'responsible' => 'María Gómez',
+                'cost_center' => 'CC-001',
+                'validity_from' => '2024-01-15',
+                'validity_to' => '2025-01-15',
+                'supplier_id' => '1 (ID existente en Proveedores)',
+            ],
+            'suppliers' => [
+                'identification' => '30-71234567-4',
+                'name' => 'Proveedor S.A.',
+                'complaint_cc' => 'reclamos@proveedor.com',
+                'cbu_checking_account' => '0070001600001234567891',
+                'name_bank' => 'Banco Nación',
+                'number_checking_account' => '000012345678',
+                'company_id' => '1 (ID existente en Compañías)',
+                'user_id' => '1 (ID existente en Usuarios, rol supplier)',
+            ],
+            'companies' => [
+                'identification' => '30-71234567-4',
+                'name' => 'Empresa S.A.',
+                'country' => 'Argentina',
+                'user_id' => '1 (ID existente en Usuarios, rol company)',
+                'logo' => '',
+                'phone' => '+54 11 5555-5555',
+                'email' => 'contacto@empresa.com',
+                'law_firm_id' => '1 (ID existente en Firmas)',
+            ],
+        ];
+
+        if (isset($examples[$slug][$field])) {
+            return $examples[$slug][$field];
+        }
+
+        if ($dataRow && in_array($dataRow->type, ['date', 'timestamp'])) {
+            return '2024-01-15';
+        }
+
+        if ($dataRow && $dataRow->type === 'number') {
+            return '1000';
+        }
+
+        return 'Ejemplo';
     }
 
     public function import(Request $request, $slug)
@@ -129,13 +211,10 @@ class CsvImportController extends Controller
         ]);
     }
 
-    private function validateRows($slug, $rows)
+    private function getValidationRules($slug)
     {
-        $errors = [];
-        $rules = [];
-
         if ($slug === 'employees') {
-            $rules = [
+            return [
                 'validity_from' => 'nullable|date_format:Y-m-d',
                 'validity_to' => 'nullable|date_format:Y-m-d',
                 'approval_status' => 'nullable|in:Revisión,Aprobado,Rechazado,Baja',
@@ -143,8 +222,10 @@ class CsvImportController extends Controller
                 'condition' => 'nullable|in:Autónomo,Empleado',
                 'cuil' => 'nullable|cuil_ar', // Add CUIL validation
             ];
-        } elseif ($slug === 'suppliers') {
-            $rules = [
+        }
+
+        if ($slug === 'suppliers') {
+            return [
                 'approval_status' => 'nullable|in:Revisión,Aprobado,Rechazado,Baja',
                 'company_id' => 'nullable|exists:companies,id',
                 'user_id' => 'nullable|exists:users,id',
@@ -152,12 +233,22 @@ class CsvImportController extends Controller
                 'cbu_checking_account' => 'nullable|numeric|digits:22|cbu_ar', // Use new rule
                 'number_checking_account' => 'nullable|numeric',
             ];
-        } elseif ($slug === 'companies') {
-            $rules = [
+        }
+
+        if ($slug === 'companies') {
+            return [
                 'law_firm_id' => 'nullable|exists:law_firms,id',
                 'user_id' => 'nullable|exists:users,id',
             ];
         }
+
+        return [];
+    }
+
+    private function validateRows($slug, $rows)
+    {
+        $errors = [];
+        $rules = $this->getValidationRules($slug);
 
         if (empty($rules)) {
             return [];

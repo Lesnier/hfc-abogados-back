@@ -316,7 +316,7 @@
                         <div class="form-group">
                             <label for="csv_file">Seleccionar Archivo CSV</label>
                             <input type="file" name="csv_file" class="form-control" accept=".csv, .txt" required>
-                            <p class="help-block">Asegúrese de usar el formato de la plantilla. Se usará la columna <strong>identification</strong> para evitar duplicados.</p>
+                            <p class="help-block">Asegúrese de usar el formato de la plantilla. La plantilla descargada incluye una <strong>fila de ejemplo</strong> (con valores de muestra y las opciones válidas para campos como condición o estatus): elimínela o reemplácela antes de importar. Se usará la columna <strong>identification</strong> para evitar duplicados.</p>
                         </div>
                     </div>
                     <div class="modal-footer">
