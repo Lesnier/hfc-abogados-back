@@ -41,7 +41,7 @@ class ImportAnalyzer
             'imported_by' => $userId,
         ]);
 
-        $spreadsheet = IOFactory::load($filePath);
+        $spreadsheet = $this->loadSpreadsheetSafely($filePath);
         $schemas = config('import_schemas');
         uasort($schemas, fn ($a, $b) => $a['order'] <=> $b['order']);
 
@@ -261,6 +261,32 @@ class ImportAnalyzer
 
         if (!empty($pendingFields)) {
             $status = 'needs_resolution';
+        }
+    }
+
+    /**
+     * PhpSpreadsheet (Shared\File::realpath) llama file_exists() sobre nombres de
+     * entrada del ZIP (ej. "xl/styles.xml") como si fueran rutas reales del
+     * filesystem. En hosts con open_basedir restringido eso genera un WARNING de
+     * PHP que el manejador de errores de Laravel convierte en ErrorException
+     * fatal, aunque PhpSpreadsheet igual sabe resolverlo internamente después.
+     * Acá silenciamos puntualmente ESE warning (nada más) mientras se carga el
+     * archivo, sin tocar vendor/ (así sobrevive a un composer update).
+     */
+    private function loadSpreadsheetSafely(string $filePath)
+    {
+        $previousHandler = set_error_handler(function ($errno, $errstr, $errfile = '', $errline = 0) use (&$previousHandler) {
+            if ($errno === E_WARNING && str_contains($errstr, 'open_basedir restriction')) {
+                return true; // silenciado: no propagar como excepción
+            }
+
+            return $previousHandler ? $previousHandler($errno, $errstr, $errfile, $errline) : false;
+        });
+
+        try {
+            return IOFactory::load($filePath);
+        } finally {
+            restore_error_handler();
         }
     }
 
