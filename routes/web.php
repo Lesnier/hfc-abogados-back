@@ -82,6 +82,22 @@ Route::group(['prefix' => 'admin'], function () {
         Route::post('/{slug}', [\App\Http\Controllers\CsvImportController::class, 'import'])->name('import');
     });
 
+    // Importador Estandarizado (Wizard)
+    Route::group([
+        'as'     => 'voyager.import-wizard.',
+        'prefix' => 'import-wizard',
+        'middleware' => ['web', 'admin.user'],
+    ], function () {
+        Route::get('/', [\App\Http\Controllers\ImportWizardController::class, 'index'])->name('index');
+        Route::post('/', [\App\Http\Controllers\ImportWizardController::class, 'store'])->name('store');
+        Route::get('/{batch}', [\App\Http\Controllers\ImportWizardController::class, 'review'])->name('review');
+        Route::post('/{batch}/resolve-group', [\App\Http\Controllers\ImportWizardController::class, 'resolveGroup'])->name('resolve-group');
+        Route::get('/{batch}/duplicates/{entitySlug}', [\App\Http\Controllers\ImportWizardController::class, 'downloadDuplicates'])->name('duplicates');
+        Route::post('/{batch}/execute', [\App\Http\Controllers\ImportWizardController::class, 'execute'])->name('execute');
+        Route::post('/{batch}/rollback', [\App\Http\Controllers\ImportWizardController::class, 'rollback'])->name('rollback');
+        Route::delete('/{batch}', [\App\Http\Controllers\ImportWizardController::class, 'destroy'])->name('destroy');
+    });
+
     // --- FIN DE RUTAS PERSONALIZADAS ---
 });
 
