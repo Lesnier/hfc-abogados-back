@@ -49,8 +49,8 @@ class EmployeeOnboardingLineChart extends BaseDimmer
         for ($i = 0; $i < 7; $i++) {
             $monthYear = $currentDate->format('Y-m');
             $labels[] = $currentDate->isoFormat('MMMM'); // Use isoFormat for localized month names
-            $contractedData[] = $employeeData->get($monthYear)->contracted_count ?? 0;
-            $separatedData[] = $employeeData->get($monthYear)->separated_count ?? 0;
+            $contractedData[] = optional($employeeData->get($monthYear))->contracted_count ?? 0;
+            $separatedData[] = optional($employeeData->get($monthYear))->separated_count ?? 0;
             $currentDate->addMonth();
         }
         $chartData = [

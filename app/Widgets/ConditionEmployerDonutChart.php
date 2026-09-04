@@ -29,11 +29,17 @@ class ConditionEmployerDonutChart extends BaseDimmer
             ->groupBy('condition')
             ->get();
 
+        $labels = ['Empleado', 'Autónomo'];
+        $data = array_map(function ($label) use ($conditionEmployers) {
+            $item = $conditionEmployers->firstWhere('condition', $label);
+            return $item ? $item->count : 0;
+        }, $labels);
+
         $chartData = [
-            'labels' => ['Empleado', 'Autónomo'],
+            'labels' => $labels,
             'datasets' => [
                 [
-                    'data' => [$conditionEmployers[0]->count, $conditionEmployers[1]->count],
+                    'data' => $data,
                     'backgroundColor' => ['#162e47', '#e3c06d'],
                 ]
             ]
