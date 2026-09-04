@@ -18,27 +18,38 @@
     @include('voyager::alerts')
 
     <div class="row">
-        <div class="col-md-3">
+        <div class="col-md-2">
             <div class="panel panel-bordered"><div class="panel-body text-center">
                 <h2>{{ $batch->total_rows }}</h2><small>Filas totales</small>
             </div></div>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-2">
             <div class="panel panel-bordered" style="border-color:#5cb85c"><div class="panel-body text-center">
-                <h2 style="color:#5cb85c">{{ $batch->ok_rows }}</h2><small>OK</small>
+                <h2 style="color:#5cb85c">{{ $liveCounts['ok'] }}</h2><small>OK</small>
             </div></div>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-2">
             <div class="panel panel-bordered" style="border-color:#f0ad4e"><div class="panel-body text-center">
-                <h2 style="color:#f0ad4e">{{ $batch->warning_rows }}</h2><small>Advertencias</small>
+                <h2 style="color:#f0ad4e">{{ $liveCounts['warning'] }}</h2><small>Advertencias</small>
             </div></div>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-2">
             <div class="panel panel-bordered" style="border-color:#d9534f"><div class="panel-body text-center">
-                <h2 style="color:#d9534f">{{ $batch->pending_rows }} / {{ $batch->error_rows }}</h2><small>Pendientes / Errores</small>
+                <h2 style="color:#d9534f">{{ $liveCounts['needs_resolution'] }} / {{ $liveCounts['error'] }}</h2><small>Pendientes / Errores</small>
+            </div></div>
+        </div>
+        <div class="col-md-2">
+            <div class="panel panel-bordered" style="border-color:#5bc0de"><div class="panel-body text-center">
+                <h2 style="color:#5bc0de">{{ $liveCounts['imported'] }}</h2><small>Ya importadas</small>
             </div></div>
         </div>
     </div>
+
+    @if($liveCounts['imported'] > 0 && $liveCounts['executable'] + $liveCounts['needs_resolution'] > 0)
+    <div class="alert alert-info">
+        <i class="voyager-info-circled"></i> Esta importación ya tiene <strong>{{ $liveCounts['imported'] }}</strong> fila(s) cargadas en el sistema. Las {{ $liveCounts['executable'] + $liveCounts['needs_resolution'] }} restantes están pendientes — podés resolverlas y ejecutar ahora, o dejarlas para otra sesión: este mismo batch va a seguir mostrando "Ejecutar" hasta que no quede nada por procesar.
+    </div>
+    @endif
 
     @if(count($pendingGroups) > 0)
     <div class="panel panel-bordered">
@@ -122,35 +133,48 @@
     </div>
     @endif
 
+    @if($liveCounts['executable'] > 0 || $liveCounts['needs_resolution'] > 0)
     <div class="panel panel-bordered">
         <div class="panel-heading"><h3 class="panel-title">Ejecutar</h3></div>
         <div class="panel-body">
-            @if(in_array($batch->status, ['completed', 'completed_with_errors', 'rolled_back']))
-                <p>Este batch ya fue procesado (estado: <strong>{{ $batch->status }}</strong>).</p>
-                @if(in_array($batch->status, ['completed', 'completed_with_errors']))
-                    <form action="{{ route('voyager.import-wizard.rollback', $batch->id) }}" method="POST" onsubmit="return confirm('Esto elimina los registros CREADOS por este batch (no revierte actualizaciones). ¿Continuar?');">
-                        @csrf
-                        <button class="btn btn-danger">Revertir importación (para volver a probar)</button>
-                    </form>
+            <form action="{{ route('voyager.import-wizard.execute', $batch->id) }}" method="POST" onsubmit="return confirm('Esto va a escribir en la base de datos real. ¿Continuar?');">
+                @csrf
+                @if($liveCounts['needs_resolution'] > 0)
+                    <div class="checkbox">
+                        <label>
+                            <input type="checkbox" name="allow_unresolved" value="1">
+                            Ejecutar de todas formas dejando SIN ASIGNAR los {{ $liveCounts['needs_resolution'] }} pendientes (quedan con la referencia vacía). Si no marcás esto, esas filas simplemente NO se importan ahora y quedan disponibles para resolver y ejecutar más adelante en este mismo batch.
+                        </label>
+                    </div>
                 @endif
-            @else
-                <form action="{{ route('voyager.import-wizard.execute', $batch->id) }}" method="POST" onsubmit="return confirm('Esto va a escribir en la base de datos real. ¿Continuar?');">
-                    @csrf
-                    @if($batch->pending_rows > 0)
-                        <div class="checkbox">
-                            <label>
-                                <input type="checkbox" name="allow_unresolved" value="1">
-                                Ejecutar de todas formas dejando SIN ASIGNAR los {{ $batch->pending_rows }} pendientes (quedan con la referencia vacía).
-                            </label>
-                        </div>
-                    @endif
-                    <button type="submit" class="btn btn-success btn-lg" {{ $batch->pending_rows > 0 ? '' : '' }}>
-                        <i class="voyager-check"></i> Ejecutar importación ({{ $batch->ok_rows + $batch->warning_rows }} filas listas)
-                    </button>
-                </form>
-            @endif
+                <button type="submit" class="btn btn-success btn-lg" {{ $liveCounts['executable'] == 0 ? 'disabled' : '' }}>
+                    <i class="voyager-check"></i> Ejecutar importación ({{ $liveCounts['executable'] }} filas listas)
+                </button>
+            </form>
         </div>
     </div>
+    @endif
+
+    @if($liveCounts['imported'] > 0)
+    <div class="panel panel-bordered">
+        <div class="panel-heading"><h3 class="panel-title">Revertir</h3></div>
+        <div class="panel-body">
+            <p class="help-block">Elimina los <strong>{{ $liveCounts['imported'] }}</strong> registros que este batch ya CREÓ (no revierte actualizaciones sobre registros que ya existían).</p>
+            <form action="{{ route('voyager.import-wizard.rollback', $batch->id) }}" method="POST" onsubmit="return confirm('Esto elimina los registros CREADOS por este batch (no revierte actualizaciones). ¿Continuar?');">
+                @csrf
+                <button class="btn btn-danger">Revertir lo ya importado</button>
+            </form>
+        </div>
+    </div>
+    @endif
+
+    @if($liveCounts['executable'] == 0 && $liveCounts['needs_resolution'] == 0 && $liveCounts['imported'] == 0)
+    <div class="panel panel-bordered">
+        <div class="panel-body">
+            <p>No queda nada por ejecutar en este batch (todo quedó en error, o ya se revirtió por completo).</p>
+        </div>
+    </div>
+    @endif
 </div>
 @stop
 

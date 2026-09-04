@@ -142,7 +142,24 @@ class ImportWizardController extends Controller
         $suppliersList = \App\Models\Supplier::orderBy('name')->get(['id', 'name', 'identification']);
         $parentLists = ['companias' => $companiesList, 'proveedores' => $suppliersList];
 
-        return view('admin.import-wizard.review', compact('batch', 'pendingGroups', 'duplicates', 'errorSamples', 'parentLists'));
+        // Contadores en vivo (no los que quedaron guardados del último análisis/
+        // ejecución): esto permite ejecuciones parciales — importar solo lo que
+        // ya está resuelto y dejar el resto pendiente para otra sesión sobre el
+        // mismo batch.
+        $liveCounts = ImportStagingRow::where('import_batch_id', $batch->id)
+            ->selectRaw('status, count(*) as c')
+            ->groupBy('status')
+            ->pluck('c', 'status');
+        $liveCounts = [
+            'ok' => $liveCounts->get('ok', 0),
+            'warning' => $liveCounts->get('warning', 0),
+            'error' => $liveCounts->get('error', 0),
+            'needs_resolution' => $liveCounts->get('needs_resolution', 0),
+            'imported' => $liveCounts->get('imported', 0),
+        ];
+        $liveCounts['executable'] = $liveCounts['ok'] + $liveCounts['warning'];
+
+        return view('admin.import-wizard.review', compact('batch', 'pendingGroups', 'duplicates', 'errorSamples', 'parentLists', 'liveCounts'));
     }
 
     public function resolveGroup(Request $request, ImportBatch $batch)
@@ -183,7 +200,7 @@ class ImportWizardController extends Controller
         $schema = config("import_schemas.{$entitySlug}");
         $rows = ImportStagingRow::where('import_batch_id', $batch->id)
             ->where('entity_slug', $entitySlug)
-            ->where('status', 'warning')
+            ->whereIn('status', ['warning', 'needs_resolution'])
             ->get()
             ->filter(fn ($r) => collect($r->notes ?? [])->contains(fn ($n) => str_contains($n, 'repetido')));
 

@@ -62,8 +62,26 @@ class ImportExecutor
             }
         });
 
+        $counts = ImportStagingRow::where('import_batch_id', $batch->id)
+            ->selectRaw('status, count(*) as c')
+            ->groupBy('status')
+            ->pluck('c', 'status');
+        $stillPending = $counts->get('needs_resolution', 0);
+
+        // Si todavía quedan filas sin resolver (ejecución parcial: se cargó solo
+        // una parte a propósito), el batch sigue "needs_review" en vez de darse
+        // por cerrado — así la pantalla de revisión sigue ofreciendo "Ejecutar"
+        // para cuando se resuelva el resto más adelante, en la MISMA importación.
+        $status = $stillPending > 0
+            ? 'needs_review'
+            : ($anyError ? 'completed_with_errors' : 'completed');
+
         $batch->update([
-            'status' => $anyError ? 'completed_with_errors' : 'completed',
+            'status' => $status,
+            'ok_rows' => $counts->get('ok', 0),
+            'warning_rows' => $counts->get('warning', 0),
+            'error_rows' => $counts->get('error', 0),
+            'pending_rows' => $stillPending,
             'executed_at' => now(),
         ]);
 
@@ -216,6 +234,24 @@ class ImportExecutor
                     ->whereIn('local_id', $ids)
                     ->delete();
             }
+
+            // Las filas que se acaban de revertir vuelven a un estado ejecutable
+            // (limpiando el ID que ya no existe), para poder ejecutarlas de nuevo
+            // más adelante sin tener que reanalizar el archivo desde cero.
+            ImportStagingRow::where('import_batch_id', $batch->id)
+                ->where('entity_slug', $entitySlug)
+                ->where('action', 'create')
+                ->where('status', 'imported')
+                ->get()
+                ->each(function (ImportStagingRow $row) {
+                    $hasDuplicateNote = collect($row->notes ?? [])->contains(fn ($n) => str_contains($n, 'repetido'));
+                    $row->update([
+                        'status' => $hasDuplicateNote ? 'warning' : 'ok',
+                        'action' => null,
+                        'created_local_id' => null,
+                        'resolved_data' => null,
+                    ]);
+                });
         }
 
         $notUpdatedRolledBack = ImportStagingRow::where('import_batch_id', $batch->id)
@@ -223,7 +259,26 @@ class ImportExecutor
             ->where('action', 'update')
             ->count();
 
-        $batch->update(['status' => 'rolled_back', 'rolled_back_at' => now()]);
+        // Estado del batch tras revertir: si queda algo por ejecutar (lo recién
+        // revertido, u otras filas que seguían pendientes de resolver), vuelve a
+        // quedar "accionable" en vez de cerrado.
+        $counts = ImportStagingRow::where('import_batch_id', $batch->id)
+            ->selectRaw('status, count(*) as c')
+            ->groupBy('status')
+            ->pluck('c', 'status');
+        $pending = $counts->get('needs_resolution', 0);
+        $executable = $counts->get('ok', 0) + $counts->get('warning', 0);
+
+        $status = $pending > 0 ? 'needs_review' : ($executable > 0 ? 'ready' : 'rolled_back');
+
+        $batch->update([
+            'status' => $status,
+            'ok_rows' => $counts->get('ok', 0),
+            'warning_rows' => $counts->get('warning', 0),
+            'error_rows' => $counts->get('error', 0),
+            'pending_rows' => $pending,
+            'rolled_back_at' => now(),
+        ]);
 
         return ['deleted' => $deleted, 'updates_not_reverted' => $notUpdatedRolledBack];
     }
