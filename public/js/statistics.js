@@ -27,6 +27,7 @@ const statusEmployerPieChart = () => {
 
         options: {
             responsive: true,
+            maintainAspectRatio: false,
             plugins: {
                 legend: {
                     position: 'top',
@@ -169,6 +170,7 @@ const conditionEmployerDonutChart = () => {
         data: chartData,
         options: {
             responsive: true,
+            maintainAspectRatio: false,
             plugins: {
                 legend: {
                     position: 'top',
