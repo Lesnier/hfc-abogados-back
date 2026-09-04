@@ -309,7 +309,12 @@ class ImportExecutor
                     $hasDuplicateNote = collect($row->notes ?? [])->contains(fn ($n) => str_contains($n, 'repetido'));
                     $row->update([
                         'status' => $hasDuplicateNote ? 'warning' : 'ok',
-                        'action' => null,
+                        // Se acaba de borrar el registro que esta fila había creado, así
+                        // que la PRÓXIMA ejecución va a ser un alta nueva otra vez — dejar
+                        // 'action' en null acá rompía silenciosamente el vínculo de usuario
+                        // (executeEntityRow solo crea/vincula el Representante/Auditor
+                        // cuando action==='create'; con null nunca se cumplía esa condición).
+                        'action' => 'create',
                         'created_local_id' => null,
                         'resolved_data' => null,
                     ]);
