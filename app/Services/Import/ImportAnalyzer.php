@@ -65,6 +65,9 @@ class ImportAnalyzer
             foreach (($schema['text_match'] ?? []) as $col => $tm) {
                 $columnsToRead[] = $col;
             }
+            if (isset($schema['user_link'])) {
+                $columnsToRead[] = $schema['user_link']['email_col'];
+            }
             if ($schema['mode'] === 'relation') {
                 $columnsToRead[] = $schema['match_external_col'];
                 $columnsToRead[] = $schema['match_identification_col'];
@@ -217,6 +220,28 @@ class ImportAnalyzer
             if (!$match) {
                 $notes[] = "'{$val}' en '{$colName}' no coincide con ningún(a) {$tm['label']} existente.";
                 $pendingFields[] = $tm['local_field'];
+            }
+        }
+
+        // Vínculo de usuario (Representante/Auditor): informativo, no bloquea ni
+        // queda pendiente — se resuelve/crea recién al ejecutar (ver
+        // ImportExecutor::resolveOrCreateUser). Acá solo se anticipa qué va a pasar.
+        if (isset($schema['user_link'])) {
+            $email = $raw[$schema['user_link']['email_col']] ?? '';
+            if ($email !== '') {
+                $existingUser = \App\Models\User::where('email', $email)->first();
+                if ($existingUser) {
+                    if (!$existingUser->hasRole($schema['user_link']['role'])) {
+                        $notes[] = "El usuario '{$email}' existe pero no tiene el rol '{$schema['user_link']['role']}' — se vinculará como {$schema['user_link']['label']} de todas formas; revisar manualmente.";
+                        if ($status !== 'error') $status = 'warning';
+                    } else {
+                        $notes[] = "Se vinculará como {$schema['user_link']['label']} al usuario existente '{$email}'.";
+                    }
+                } else {
+                    $notes[] = "Se creará una cuenta de usuario nueva con email '{$email}' como {$schema['user_link']['label']}.";
+                }
+            } else {
+                $notes[] = "No se indicó email de {$schema['user_link']['label']} — se creará una cuenta de usuario placeholder para poder dejarlo vinculado.";
             }
         }
 

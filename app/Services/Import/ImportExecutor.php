@@ -5,7 +5,11 @@ namespace App\Services\Import;
 use App\Models\ImportBatch;
 use App\Models\ImportMapping;
 use App\Models\ImportStagingRow;
+use App\Models\Role;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 /**
  * Ejecuta un batch ya revisado: escribe en las tablas de negocio reales,
@@ -122,6 +126,17 @@ class ImportExecutor
             $data[$tm['local_field']] = $match?->getKey();
         }
 
+        if (isset($schema['user_link'])) {
+            $emailProvided = trim($raw[$schema['user_link']['email_col']] ?? '') !== '';
+            // Si la fila es una ACTUALIZACIÓN de un registro que ya existía y el
+            // archivo no trajo email, no tocamos user_id: podría ya tener un
+            // representante/auditor real vinculado y no queremos pisarlo con un
+            // placeholder solo porque esta fila no trajo el dato.
+            if ($row->action === 'create' || $emailProvided) {
+                $data[$schema['user_link']['local_field']] = $this->resolveOrCreateUser($schema['user_link'], $raw, $batch->id);
+            }
+        }
+
         $instance = $model::updateOrCreate([$uniqueKey => $raw[$uniqueKey]], $data);
         $action = $instance->wasRecentlyCreated ? 'create' : 'update';
 
@@ -140,6 +155,53 @@ class ImportExecutor
             'resolved_data' => $data,
             'created_local_id' => $instance->getKey(),
         ]);
+    }
+
+    /**
+     * Resuelve el usuario "Representante"/"Auditor" de una compañía o proveedor:
+     * si vino un email, matchea (o crea) contra ese email; si no vino ninguno,
+     * genera un email placeholder determinístico a partir de la identification
+     * para poder crear igual la cuenta y dejarlo vinculado (nunca inventa un
+     * email real: el dominio del placeholder deja explícito que es sintético).
+     */
+    private function resolveOrCreateUser(array $userLink, array $raw, int $batchId): ?int
+    {
+        $email = trim($raw[$userLink['email_col']] ?? '');
+
+        if ($email === '') {
+            $identification = preg_replace('/[^a-zA-Z0-9]/', '', $raw['identification'] ?? '');
+            if ($identification === '') {
+                return null; // sin identification no hay forma determinística de generar el placeholder
+            }
+            $email = strtolower($userLink['placeholder_prefix'] . '-' . $identification . '@sin-email.importado.local');
+        }
+
+        $existing = User::where('email', $email)->first();
+        if ($existing) {
+            return $existing->id;
+        }
+
+        $roleId = Role::where('name', $userLink['role'])->value('id');
+
+        $user = User::create([
+            'name' => $raw['name'] ?? $email,
+            'email' => $email,
+            'password' => Hash::make(Str::random(40)),
+            'role_id' => $roleId,
+        ]);
+
+        // Registrado para que "Revertir" pueda limpiar también este usuario si
+        // fue creado por este batch (nunca si se vinculó a uno ya existente).
+        ImportMapping::create([
+            'import_batch_id' => $batchId,
+            'entity_slug' => 'users',
+            'external_id' => null,
+            'identification' => $email,
+            'local_id' => $user->id,
+            'action' => 'create',
+        ]);
+
+        return $user->id;
     }
 
     private function executeRelationRow(ImportBatch $batch, string $entitySlug, array $schema, ImportStagingRow $row): void
@@ -253,6 +315,24 @@ class ImportExecutor
                     ]);
                 });
         }
+
+        // Limpiar también los usuarios placeholder/nuevos que este batch haya
+        // creado como Representante/Auditor (nunca los que solo vinculó a un
+        // usuario ya existente — esos no tienen mapping con action='create').
+        // Se hace al final, después de borrar proveedores/compañías, para no
+        // dejar un user_id apuntando a un usuario ya eliminado mientras tanto.
+        $userIds = ImportMapping::where('import_batch_id', $batch->id)
+            ->where('entity_slug', 'users')
+            ->where('action', 'create')
+            ->pluck('local_id');
+        if ($userIds->isNotEmpty()) {
+            \App\Models\User::whereIn('id', $userIds)->delete();
+            ImportMapping::where('import_batch_id', $batch->id)
+                ->where('entity_slug', 'users')
+                ->where('action', 'create')
+                ->delete();
+        }
+        $deleted['usuarios'] = $userIds->count();
 
         $notUpdatedRolledBack = ImportStagingRow::where('import_batch_id', $batch->id)
             ->where('status', 'imported')

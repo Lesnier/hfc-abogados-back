@@ -46,6 +46,15 @@ return [
                 'label' => 'Estudio de Abogados',
             ],
         ],
+        // Vínculo con el usuario "Auditor" de la compañía (companies.user_id).
+        // Ver ImportExecutor::resolveOrCreateUser().
+        'user_link' => [
+            'local_field' => 'user_id',
+            'label' => 'Auditor',
+            'role' => 'company',
+            'email_col' => 'user_email',
+            'placeholder_prefix' => 'empresa',
+        ],
     ],
 
     'proveedores' => [
@@ -75,6 +84,14 @@ return [
             ],
         ],
         'text_match' => [],
+        // Vínculo con el usuario "Representante" del proveedor (suppliers.user_id).
+        'user_link' => [
+            'local_field' => 'user_id',
+            'label' => 'Representante',
+            'role' => 'supplier',
+            'email_col' => 'user_email',
+            'placeholder_prefix' => 'proveedor',
+        ],
     ],
 
     'empleados' => [

@@ -76,6 +76,18 @@ Esto es lo más importante para entender **antes** de tocar "Ejecutar":
 
 Es decir: importar **no es solo agregar datos nuevos**. Si el archivo trae empleados o proveedores que ya están cargados, sus datos actuales (estatus, fechas, centro de costo, etc.) se **sobrescriben** con lo que diga el Excel. Antes de ejecutar una importación grande, conviene tener claro si el archivo origen es "más nuevo y confiable" que lo que ya está cargado en el sistema.
 
+### Usuario asociado (Representante / Auditor)
+
+Proveedores y Compañías tienen un usuario vinculado: **Representante** (`suppliers.user_id`) y **Auditor** (`companies.user_id`). El importador se encarga de esto automáticamente:
+
+| Trae `user_email` en el archivo | ¿Ya existe un usuario con ese email? | Qué hace el sistema |
+|---|---|---|
+| Sí | Sí | Vincula ese usuario existente. Si su rol no es el correcto (`supplier`/`company`), lo vincula igual pero deja una advertencia para revisar a mano. |
+| Sí | No | **Crea** un usuario nuevo con ese email real, con el rol correspondiente. |
+| No | — | **Crea** un usuario nuevo con un email placeholder generado a partir de la `identification` (ej. `proveedor-30712345674@sin-email.importado.local`) — así queda igual vinculado, aunque el origen no haya traído ningún dato de contacto real. |
+
+Esto **solo pasa al crear un proveedor/compañía nuevo**, o si la fila trae explícitamente `user_email`. Si es una fila que **actualiza** un proveedor/compañía que ya existía y no trae `user_email`, el sistema **no toca** el usuario que ya tenía vinculado — para no pisar un representante real ya cargado con un placeholder.
+
 ---
 
 ## 5. Qué tiene "deshacer" (rollback) y qué NO
@@ -85,6 +97,7 @@ En el historial hay un botón **"Revertir"** para cada importación ya ejecutada
 | Acción | ¿Se puede revertir? |
 |---|---|
 | Registros **creados** por esa importación (compañía/proveedor/empleado nuevo) | ✅ **Sí** — "Revertir" los elimina por completo |
+| Usuarios (Representante/Auditor) **creados** por esa importación | ✅ **Sí** — se eliminan junto con el resto. Si el importador solo **vinculó** un usuario que ya existía, ese usuario nunca se toca |
 | Registros que la importación **actualizó** (ya existían, se les pisaron datos) | ❌ **No** — no se guarda el valor que tenían antes, así que no hay forma de restaurarlo automáticamente |
 
 **Conclusión práctica:** "Revertir" es seguro y útil cuando estás **probando el archivo por primera vez** (mayormente van a ser altas nuevas). Es **mucho más delicado** una vez que empezás a reimportar sobre datos que ya existían en el sistema — ahí un "Revertir" solo limpia lo nuevo, pero los que se actualizaron quedan con los valores pisados.
