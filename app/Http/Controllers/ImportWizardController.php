@@ -19,6 +19,20 @@ class ImportWizardController extends Controller
         return view('admin.import-wizard.index', compact('batches'));
     }
 
+    /**
+     * Estas acciones (ejecutar, revertir, resolver grupo) solo aceptan POST.
+     * Si llega un GET por navegación del browser (botón "atrás", pestaña
+     * restaurada, un enlace guardado, etc.) no se ejecuta nada — se redirige
+     * de vuelta a la revisión con un aviso, en vez de mostrar un error crudo.
+     */
+    public function redirectAccidentalGet(ImportBatch $batch)
+    {
+        return redirect()->route('voyager.import-wizard.review', $batch->id)->with([
+            'message' => 'Esa acción necesita que uses el botón correspondiente en la página — no se hizo ningún cambio.',
+            'alert-type' => 'warning',
+        ]);
+    }
+
     public function store(Request $request)
     {
         $request->validate([

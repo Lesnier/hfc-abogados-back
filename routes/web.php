@@ -96,6 +96,13 @@ Route::group(['prefix' => 'admin'], function () {
         Route::post('/{batch}/execute', [\App\Http\Controllers\ImportWizardController::class, 'execute'])->name('execute');
         Route::post('/{batch}/rollback', [\App\Http\Controllers\ImportWizardController::class, 'rollback'])->name('rollback');
         Route::delete('/{batch}', [\App\Http\Controllers\ImportWizardController::class, 'destroy'])->name('destroy');
+
+        // Si por navegación del browser (botón "atrás", pestaña restaurada, etc.)
+        // llega un GET a una de estas acciones que solo aceptan POST, redirigir
+        // con un aviso en vez de mostrar un 405 crudo. No ejecutan nada.
+        Route::get('/{batch}/execute', [\App\Http\Controllers\ImportWizardController::class, 'redirectAccidentalGet'])->name('execute.get');
+        Route::get('/{batch}/rollback', [\App\Http\Controllers\ImportWizardController::class, 'redirectAccidentalGet'])->name('rollback.get');
+        Route::get('/{batch}/resolve-group', [\App\Http\Controllers\ImportWizardController::class, 'redirectAccidentalGet'])->name('resolve-group.get');
     });
 
     // --- FIN DE RUTAS PERSONALIZADAS ---
